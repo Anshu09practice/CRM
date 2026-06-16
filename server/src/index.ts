@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import os from 'os';
+import https from 'https';
+import fs from 'fs';
 import { initDatabase } from './db';
 import itemsRouter from './routes/items';
 import excelRouter from './routes/excel';
@@ -58,14 +60,33 @@ function getLocalIP(): string {
 async function start() {
   await initDatabase();
 
-  const server = app.listen(Number(PORT), '0.0.0.0', () => {
+  // Load SSL certificates
+  const certDir = path.join(__dirname, '..', 'certs');
+  const keyPath = path.join(certDir, 'key.pem');
+  const certPath = path.join(certDir, 'cert.pem');
+
+  if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
+    console.error('\n✗ SSL certificates not found!');
+    console.error('  Run: npm run generate-cert');
+    process.exit(1);
+  }
+
+  const options = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath)
+  };
+
+  const server = https.createServer(options, app).listen(Number(PORT), '0.0.0.0', () => {
     const localIP = getLocalIP();
     console.log('\n=========================================');
     console.log('   Jalan Jyothi CRM - Server Ready');
     console.log('=========================================');
-    console.log(`   Local:   http://localhost:${PORT}`);
-    console.log(`   Network: http://${localIP}:${PORT}`);
+    console.log(`   Local:   https://localhost:${PORT}`);
+    console.log(`   Network: https://${localIP}:${PORT}`);
     console.log(`   (Use the Network URL on your phone)`);
+    console.log('=========================================');
+    console.log('   ⚠️  Note: Certificate is self-signed');
+    console.log('   Accept the warning on your phone browser');
     console.log('=========================================\n');
 
     // Schedule daily backup
