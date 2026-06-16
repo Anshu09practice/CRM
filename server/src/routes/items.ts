@@ -1,0 +1,296 @@
+import { Router, Request, Response } from 'express';
+import { queryAll, queryOne, runQuery } from '../db';
+import { CreateItemInput, calculateSizing } from '../services/sizing';
+
+const router = Router();
+
+// GET /api/items - List all items with optional search
+router.get('/', (req: Request, res: Response) => {
+  const { search, packaging_style } = req.query;
+
+  let query = 'SELECT * FROM items';
+  const conditions: string[] = [];
+  const params: any[] = [];
+
+  if (search && typeof search === 'string') {
+    conditions.push('item_name LIKE ?');
+    params.push(`%${search}%`);
+  }
+
+  if (packaging_style && typeof packaging_style === 'string') {
+    conditions.push('packaging_style = ?');
+    params.push(packaging_style);
+  }
+
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+
+  query += ' ORDER BY updated_at DESC';
+
+  const items = queryAll(query, params);
+  res.json({ items, total: items.length });
+});
+
+// GET /api/items/export/json - Export all items as JSON (must be before /:id)
+router.get('/export/json', (_req: Request, res: Response) => {
+  const items = queryAll('SELECT * FROM items ORDER BY item_name');
+  res.json({ items, exported_at: new Date().toISOString(), total: items.length });
+});
+
+// GET /api/items/template/csv - Download a CSV template for bulk import/update
+router.get('/template/csv', (_req: Request, res: Response) => {
+  const header = 'id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style';
+  const example1 = ',Jeera Powder,50,8,10,12,packet';
+  const example2 = ',Haldi Powder,100,15,20,25,packet';
+  const example3 = ',Chilli Premium,100,30,45,50,standing_package';
+  const csv = [header, example1, example2, example3].join('\n');
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="jalan_jyothi_items_template.csv"');
+  res.send(csv);
+});
+
+// GET /api/items/export/csv - Export all items as CSV
+router.get('/export/csv', (_req: Request, res: Response) => {
+  const items = queryAll('SELECT id, item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style FROM items ORDER BY item_name');
+  const header = 'id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style';
+  const rows = items.map((item: any) =>
+    `${item.id},"${(item.item_name || '').replace(/"/g, '""')}",${item.package_quantity_grams},${item.purchase_cost},${item.selling_price},${item.mrp},${item.packaging_style}`
+  );
+  const csv = [header, ...rows].join('\n');
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="jalan_jyothi_items_export.csv"');
+  res.send(csv);
+});
+
+// POST /api/items/bulk-update - Bulk update items from CSV data
+// If id is provided and matches an existing item, it updates it.
+// If id is empty but item_name matches an existing item, it updates it.
+// If neither matches, it inserts a new item.
+router.post('/bulk-update', (req: Request, res: Response) => {
+  const { items } = req.body;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Items array is required and must not be empty' });
+  }
+
+  let updated = 0;
+  let created = 0;
+  const errors: string[] = [];
+
+  for (const item of items) {
+    try {
+      if (!item.item_name || !String(item.item_name).trim()) {
+        errors.push('Skipped row with empty item name');
+        continue;
+      }
+
+      const name = String(item.item_name).trim();
+      const packaging = (item.packaging_style || 'packet').toLowerCase().includes('stand') ? 'standing_package' : 'packet';
+      const qty = parseInt(item.package_quantity_grams) || 0;
+      const purchase = parseFloat(item.purchase_cost) || 0;
+      const selling = parseFloat(item.selling_price) || 0;
+      const mrp = parseFloat(item.mrp) || 0;
+      const { packets_per_bundle, bundle_weight_grams } = calculateSizing(packaging, qty);
+
+      // Try to find existing item by id or name
+      let existing: any = null;
+      if (item.id && String(item.id).trim()) {
+        existing = queryOne('SELECT * FROM items WHERE id = ?', [parseInt(item.id)]);
+      }
+      if (!existing) {
+        existing = queryOne('SELECT * FROM items WHERE LOWER(item_name) = LOWER(?)', [name]);
+      }
+
+      if (existing) {
+        // Update existing item
+        runQuery(
+          `UPDATE items SET
+            item_name = ?, package_quantity_grams = ?, purchase_cost = ?,
+            selling_price = ?, mrp = ?, packaging_style = ?,
+            packets_per_bundle = ?, bundle_weight_grams = ?,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?`,
+          [name, qty, purchase, selling, mrp, packaging, packets_per_bundle, bundle_weight_grams, existing.id]
+        );
+        updated++;
+      } else {
+        // Insert new item
+        runQuery(
+          `INSERT INTO items (item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, packets_per_bundle, bundle_weight_grams)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [name, qty, purchase, selling, mrp, packaging, packets_per_bundle, bundle_weight_grams]
+        );
+        created++;
+      }
+    } catch (err: any) {
+      errors.push(`Failed to process "${item.item_name}": ${err.message}`);
+    }
+  }
+
+  res.json({
+    message: `Processed ${updated + created} items: ${updated} updated, ${created} created`,
+    updated,
+    created,
+    errors
+  });
+});
+
+// GET /api/items/:id - Get single item
+router.get('/:id', (req: Request, res: Response) => {
+  const item = queryOne('SELECT * FROM items WHERE id = ?', [req.params.id]);
+  if (!item) {
+    return res.status(404).json({ error: 'Item not found' });
+  }
+  res.json(item);
+});
+
+// POST /api/items/import - Bulk import items (must be before generic POST)
+router.post('/import', (req: Request, res: Response) => {
+  const { items } = req.body;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Items array is required and must not be empty' });
+  }
+
+  let imported = 0;
+  const errors: string[] = [];
+
+  for (const item of items as CreateItemInput[]) {
+    try {
+      if (!item.item_name || !item.item_name.trim()) {
+        errors.push('Skipped item with empty name');
+        continue;
+      }
+
+      const packaging = item.packaging_style || 'packet';
+      const qty = item.package_quantity_grams || 0;
+      const { packets_per_bundle, bundle_weight_grams } = calculateSizing(packaging, qty);
+
+      runQuery(
+        `INSERT INTO items (item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, packets_per_bundle, bundle_weight_grams)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          item.item_name.trim(),
+          qty,
+          item.purchase_cost || 0,
+          item.selling_price || 0,
+          item.mrp || 0,
+          packaging,
+          packets_per_bundle,
+          bundle_weight_grams
+        ]
+      );
+      imported++;
+    } catch (err: any) {
+      errors.push(`Failed to import "${item.item_name}": ${err.message}`);
+    }
+  }
+
+  res.json({ message: `Imported ${imported} items`, imported, errors });
+});
+
+// POST /api/items - Create item
+router.post('/', (req: Request, res: Response) => {
+  const { item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style } = req.body as CreateItemInput;
+
+  // Validation
+  if (!item_name || !item_name.trim()) {
+    return res.status(400).json({ error: 'Item name is required' });
+  }
+  if (!package_quantity_grams || package_quantity_grams <= 0) {
+    return res.status(400).json({ error: 'Package quantity must be greater than 0' });
+  }
+  if (!['packet', 'standing_package'].includes(packaging_style)) {
+    return res.status(400).json({ error: 'Packaging style must be "packet" or "standing_package"' });
+  }
+  if (purchase_cost < 0 || selling_price < 0 || mrp < 0) {
+    return res.status(400).json({ error: 'Prices cannot be negative' });
+  }
+
+  // Auto-calculate sizing
+  const { packets_per_bundle, bundle_weight_grams } = calculateSizing(packaging_style, package_quantity_grams);
+
+  const result = runQuery(
+    `INSERT INTO items (item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, packets_per_bundle, bundle_weight_grams)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      item_name.trim(),
+      package_quantity_grams,
+      purchase_cost || 0,
+      selling_price || 0,
+      mrp || 0,
+      packaging_style,
+      packets_per_bundle,
+      bundle_weight_grams
+    ]
+  );
+
+  const newItem = queryOne('SELECT * FROM items WHERE id = ?', [result.lastInsertRowid]);
+  res.status(201).json(newItem);
+});
+
+// PUT /api/items/:id - Update item
+router.put('/:id', (req: Request, res: Response) => {
+  const existing = queryOne('SELECT * FROM items WHERE id = ?', [req.params.id]);
+  if (!existing) {
+    return res.status(404).json({ error: 'Item not found' });
+  }
+
+  const { item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style } = req.body as CreateItemInput;
+
+  // Validation
+  if (!item_name || !item_name.trim()) {
+    return res.status(400).json({ error: 'Item name is required' });
+  }
+  if (!package_quantity_grams || package_quantity_grams <= 0) {
+    return res.status(400).json({ error: 'Package quantity must be greater than 0' });
+  }
+  if (!['packet', 'standing_package'].includes(packaging_style)) {
+    return res.status(400).json({ error: 'Packaging style must be "packet" or "standing_package"' });
+  }
+  if (purchase_cost < 0 || selling_price < 0 || mrp < 0) {
+    return res.status(400).json({ error: 'Prices cannot be negative' });
+  }
+
+  // Auto-calculate sizing
+  const { packets_per_bundle, bundle_weight_grams } = calculateSizing(packaging_style, package_quantity_grams);
+
+  runQuery(
+    `UPDATE items SET
+      item_name = ?, package_quantity_grams = ?, purchase_cost = ?,
+      selling_price = ?, mrp = ?, packaging_style = ?,
+      packets_per_bundle = ?, bundle_weight_grams = ?,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?`,
+    [
+      item_name.trim(),
+      package_quantity_grams,
+      purchase_cost || 0,
+      selling_price || 0,
+      mrp || 0,
+      packaging_style,
+      packets_per_bundle,
+      bundle_weight_grams,
+      req.params.id
+    ]
+  );
+
+  const updated = queryOne('SELECT * FROM items WHERE id = ?', [req.params.id]);
+  res.json(updated);
+});
+
+// DELETE /api/items/:id - Delete item
+router.delete('/:id', (req: Request, res: Response) => {
+  const existing = queryOne('SELECT * FROM items WHERE id = ?', [req.params.id]);
+  if (!existing) {
+    return res.status(404).json({ error: 'Item not found' });
+  }
+
+  runQuery('DELETE FROM items WHERE id = ?', [req.params.id]);
+  res.json({ message: 'Item deleted successfully' });
+});
+
+export default router;
