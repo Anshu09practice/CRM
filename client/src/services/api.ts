@@ -1,3 +1,14 @@
+import { localApi } from './localDb';
+
+// Detect if running as a Capacitor/mobile app (offline mode)
+export const isOfflineMode = (): boolean => {
+  // Check if running inside Capacitor native shell
+  if ((window as any).Capacitor?.isNativePlatform?.()) return true;
+  // Allow forcing offline mode via localStorage
+  if (localStorage.getItem('jj_offline_mode') === 'true') return true;
+  return false;
+};
+
 const API_BASE = '/api';
 
 function getAuthHeaders(): Record<string, string> {
@@ -156,7 +167,7 @@ async function handleResponse(res: Response) {
   return res.json();
 }
 
-export const api = {
+const serverApi = {
   // ===== Items =====
   async getItems(search?: string, packaging_style?: string, category_id?: string): Promise<ItemsResponse> {
     const params = new URLSearchParams();
@@ -524,3 +535,27 @@ export const api = {
     URL.revokeObjectURL(a.href);
   },
 };
+
+/**
+ * Unified API - automatically uses local storage in offline/mobile mode
+ * or server API when running as web app with server.
+ */
+export function getApi() {
+  if (isOfflineMode()) {
+    return localApi as unknown as typeof serverApi;
+  }
+  return serverApi;
+}
+
+/**
+ * Smart API proxy - automatically routes to local DB in offline/mobile mode.
+ * All existing `import { api } from './api'` usage continues to work seamlessly.
+ */
+export const api = new Proxy(serverApi, {
+  get(target, prop, receiver) {
+    if (isOfflineMode() && prop in localApi) {
+      return (localApi as any)[prop];
+    }
+    return Reflect.get(target, prop, receiver);
+  }
+});

@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { isOfflineMode } from '../services/api';
+import { localApi } from '../services/localDb';
 
 interface User {
   id: number;
@@ -68,6 +70,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function checkStatus() {
     try {
+      if (isOfflineMode()) {
+        const needsSetup = await localApi.checkSetupRequired();
+        setSetupRequired(needsSetup);
+        if (!needsSetup && token) {
+          const stored = localStorage.getItem('jj_user');
+          if (stored) setUser(JSON.parse(stored));
+        }
+        setLoading(false);
+        return;
+      }
+
       const statusRes = await fetch('/api/auth/status');
       const statusData = await statusRes.json();
 
@@ -98,13 +111,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch {
-      // Server unreachable — keep token for offline mode
+      // Server unreachable — if offline mode, check local
+      if (isOfflineMode() || localStorage.getItem('jj_offline_mode') === 'true') {
+        const needsSetup = await localApi.checkSetupRequired();
+        setSetupRequired(needsSetup);
+        if (!needsSetup && token) {
+          const stored = localStorage.getItem('jj_user');
+          if (stored) setUser(JSON.parse(stored));
+        }
+      }
     } finally {
       setLoading(false);
     }
   }
 
   async function login(usr: string, pwd: string) {
+    if (isOfflineMode()) {
+      const data = await localApi.login(usr, pwd);
+      setToken(data.token);
+      setUser(data.user);
+      localStorage.setItem('jj_token', data.token);
+      localStorage.setItem('jj_refresh_token', data.refreshToken);
+      localStorage.setItem('jj_user', JSON.stringify(data.user));
+      return;
+    }
+
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -125,6 +156,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function setup(usr: string, pwd: string, security_question: string, security_answer: string) {
+    if (isOfflineMode()) {
+      const data = await localApi.setup(usr, pwd, security_question, security_answer);
+      setToken(data.token);
+      setUser(data.user);
+      setSetupRequired(false);
+      localStorage.setItem('jj_token', data.token);
+      localStorage.setItem('jj_refresh_token', 'local-refresh');
+      localStorage.setItem('jj_user', JSON.stringify(data.user));
+      return;
+    }
+
     const res = await fetch('/api/auth/setup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
