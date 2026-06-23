@@ -4,7 +4,9 @@ echo    JJ CRM - Build Android APK
 echo =========================================
 echo.
 
-:: Add Node.js to PATH if needed
+:: Set Java and Android SDK paths
+set JAVA_HOME=C:\Program Files\Android\Android Studio\jbr
+set ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk
 set PATH=C:\Program Files\nodejs;%PATH%
 
 cd /d "%~dp0client"
@@ -49,6 +51,21 @@ echo.
 echo  Or build from command line:
 echo  cd client\android
 echo  gradlew assembleDebug
-echo  APK will be in: android\app\build\outputs\apk\debug\
+echo  APK location: client\android\app\build\outputs\apk\debug\app-debug.apk
 echo =========================================
+
+:: Also build the APK directly
+echo.
+echo Building APK...
+cd android
+call gradlew assembleDebug --no-daemon
+if errorlevel 1 (
+  echo.
+  echo ERROR: APK build failed!
+  pause
+  exit /b 1
+)
+echo.
+echo APK built successfully!
+echo Location: client\android\app\build\outputs\apk\debug\app-debug.apk
 pause
