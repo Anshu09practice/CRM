@@ -4,63 +4,53 @@
 
 @layer base {
   body {
-    @apply text-slate-800 antialiased bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen;
+    @apply text-gray-800 antialiased bg-gray-50 min-h-screen;
   }
 
-  /* Print styles */
   @media print {
-    body {
-      @apply bg-white;
-    }
-    .print\:hidden {
-      display: none !important;
-    }
-    .print\:shadow-none {
-      box-shadow: none !important;
-    }
-    .print\:rounded-none {
-      border-radius: 0 !important;
-    }
-    .print\:my-0 {
-      margin-top: 0 !important;
-      margin-bottom: 0 !important;
-    }
-    .print\:max-w-full {
-      max-width: 100% !important;
-    }
-    .print\:p-6 {
-      padding: 1.5rem !important;
-    }
+    body { @apply bg-white; }
+    .print\:hidden { display: none !important; }
+    .print\:shadow-none { box-shadow: none !important; }
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-gradient-to-r from-brand-600 to-brand-700 text-white px-4 py-2 rounded-xl font-medium
-           hover:from-brand-700 hover:to-brand-800 active:from-brand-800 active:to-brand-900
-           transition-all shadow-sm hover:shadow-md
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm;
+    @apply bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium text-sm
+           hover:bg-indigo-700 active:bg-indigo-800
+           transition-colors shadow-sm
+           disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
-    @apply bg-white text-slate-700 px-4 py-2 rounded-xl font-medium border border-slate-200
-           hover:bg-slate-50 hover:border-slate-300 active:bg-slate-100 transition-all shadow-sm;
+    @apply bg-white text-gray-700 px-4 py-2 rounded-lg font-medium text-sm border border-gray-200
+           hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100 transition-colors;
   }
 
   .btn-danger {
-    @apply bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-xl font-medium
-           hover:from-red-600 hover:to-red-700 active:from-red-700 active:to-red-800
-           transition-all shadow-sm hover:shadow-md;
+    @apply bg-red-600 text-white px-4 py-2 rounded-lg font-medium text-sm
+           hover:bg-red-700 active:bg-red-800 transition-colors shadow-sm;
+  }
+
+  .input {
+    @apply px-3 py-2 border border-gray-200 rounded-lg bg-white
+           focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400
+           placeholder-gray-400 transition-all text-sm;
   }
 
   .input-field {
-    @apply w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-white
-           focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400
-           placeholder-slate-400 transition-all text-sm;
+    @apply input w-full;
+  }
+
+  .label {
+    @apply block text-xs font-medium text-gray-600 mb-1;
   }
 
   .card {
-    @apply bg-white rounded-2xl shadow-soft border border-slate-100 p-4
-           transition-all duration-200;
+    @apply bg-white rounded-xl border border-gray-200 p-4 transition-all duration-200;
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }

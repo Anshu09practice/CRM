@@ -23,19 +23,29 @@ function getOrCreateSecret(): string {
 }
 
 const JWT_SECRET = getOrCreateSecret();
-const TOKEN_EXPIRY = '7d'; // Token valid for 7 days
+const ACCESS_TOKEN_EXPIRY = '24h';
+const REFRESH_TOKEN_EXPIRY = '30d';
 
 export interface AuthPayload {
+  userId: number;
   username: string;
+  role: 'owner' | 'manager';
   iat?: number;
   exp?: number;
 }
 
 /**
- * Generate a JWT token for a user
+ * Generate an access token for a user
  */
-export function generateToken(username: string): string {
-  return jwt.sign({ username }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+export function generateToken(userId: number, username: string, role: string): string {
+  return jwt.sign({ userId, username, role }, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
+}
+
+/**
+ * Generate a refresh token for a user
+ */
+export function generateRefreshToken(userId: number, username: string, role: string): string {
+  return jwt.sign({ userId, username, role, type: 'refresh' }, JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRY });
 }
 
 /**
@@ -50,8 +60,8 @@ export function verifyToken(token: string): AuthPayload | null {
 }
 
 /**
- * Express middleware to protect routes
- * Checks for Bearer token in Authorization header
+ * Express middleware to protect routes.
+ * Checks for Bearer token in Authorization header.
  */
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
@@ -60,7 +70,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  const token = authHeader.slice(7); // Remove 'Bearer '
+  const token = authHeader.slice(7);
   const payload = verifyToken(token);
 
   if (!payload) {
@@ -70,6 +80,23 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   // Attach user info to request
   (req as any).user = payload;
   next();
+}
+
+/**
+ * Middleware factory to require specific roles.
+ * Usage: requireRole('owner') or requireRole('owner', 'manager')
+ */
+export function requireRole(...roles: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = (req as any).user as AuthPayload;
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    if (!roles.includes(user.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    next();
+  };
 }
 
 export { JWT_SECRET };

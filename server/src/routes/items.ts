@@ -1,12 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { queryAll, queryOne, runQuery } from '../db';
 import { CreateItemInput, calculateSizing } from '../services/sizing';
+import { requireRole } from '../middleware/auth';
 
 const router = Router();
 
 // GET /api/items - List all items with optional search
 router.get('/', (req: Request, res: Response) => {
-  const { search, packaging_style } = req.query;
+  const { search, packaging_style, category_id } = req.query;
 
   let query = 'SELECT * FROM items';
   const conditions: string[] = [];
@@ -20,6 +21,11 @@ router.get('/', (req: Request, res: Response) => {
   if (packaging_style && typeof packaging_style === 'string') {
     conditions.push('packaging_style = ?');
     params.push(packaging_style);
+  }
+
+  if (category_id && typeof category_id === 'string') {
+    conditions.push('category_id = ?');
+    params.push(category_id);
   }
 
   if (conditions.length > 0) {
@@ -36,6 +42,14 @@ router.get('/', (req: Request, res: Response) => {
 router.get('/export/json', (_req: Request, res: Response) => {
   const items = queryAll('SELECT * FROM items ORDER BY item_name');
   res.json({ items, exported_at: new Date().toISOString(), total: items.length });
+});
+
+// GET /api/items/low-stock - Get items below stock threshold
+router.get('/low-stock', (_req: Request, res: Response) => {
+  const items = queryAll(`
+    SELECT * FROM items WHERE current_stock <= low_stock_threshold ORDER BY current_stock ASC
+  `);
+  res.json({ items, total: items.length });
 });
 
 // GET /api/items/template/csv - Download a CSV template for bulk import/update
@@ -194,7 +208,7 @@ router.post('/import', (req: Request, res: Response) => {
 
 // POST /api/items - Create item
 router.post('/', (req: Request, res: Response) => {
-  const { item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style } = req.body as CreateItemInput;
+  const { item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, category_id } = req.body;
 
   // Validation
   if (!item_name || !item_name.trim()) {
@@ -214,8 +228,8 @@ router.post('/', (req: Request, res: Response) => {
   const { packets_per_bundle, bundle_weight_grams } = calculateSizing(packaging_style, package_quantity_grams);
 
   const result = runQuery(
-    `INSERT INTO items (item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, packets_per_bundle, bundle_weight_grams)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO items (item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, packets_per_bundle, bundle_weight_grams, category_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       item_name.trim(),
       package_quantity_grams,
@@ -224,7 +238,8 @@ router.post('/', (req: Request, res: Response) => {
       mrp || 0,
       packaging_style,
       packets_per_bundle,
-      bundle_weight_grams
+      bundle_weight_grams,
+      category_id || null
     ]
   );
 
@@ -239,7 +254,7 @@ router.put('/:id', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Item not found' });
   }
 
-  const { item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style } = req.body as CreateItemInput;
+  const { item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, category_id } = req.body;
 
   // Validation
   if (!item_name || !item_name.trim()) {
@@ -262,7 +277,7 @@ router.put('/:id', (req: Request, res: Response) => {
     `UPDATE items SET
       item_name = ?, package_quantity_grams = ?, purchase_cost = ?,
       selling_price = ?, mrp = ?, packaging_style = ?,
-      packets_per_bundle = ?, bundle_weight_grams = ?,
+      packets_per_bundle = ?, bundle_weight_grams = ?, category_id = ?,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?`,
     [
@@ -274,6 +289,7 @@ router.put('/:id', (req: Request, res: Response) => {
       packaging_style,
       packets_per_bundle,
       bundle_weight_grams,
+      category_id || null,
       req.params.id
     ]
   );
@@ -282,8 +298,8 @@ router.put('/:id', (req: Request, res: Response) => {
   res.json(updated);
 });
 
-// DELETE /api/items/:id - Delete item
-router.delete('/:id', (req: Request, res: Response) => {
+// DELETE /api/items/:id - Delete item (owner only)
+router.delete('/:id', requireRole('owner'), (req: Request, res: Response) => {
   const existing = queryOne('SELECT * FROM items WHERE id = ?', [req.params.id]);
   if (!existing) {
     return res.status(404).json({ error: 'Item not found' });

@@ -11,6 +11,22 @@ set PATH=C:\Program Files\nodejs;%PATH%
 
 cd /d "%~dp0"
 
+:: Install dependencies if needed
+if not exist "server\node_modules" (
+  echo Installing server dependencies...
+  cd server
+  call npm install
+  cd ..
+  echo.
+)
+if not exist "client\node_modules" (
+  echo Installing client dependencies...
+  cd client
+  call npm install
+  cd ..
+  echo.
+)
+
 :: Generate SSL certificates if needed
 echo Checking SSL certificates...
 cd server

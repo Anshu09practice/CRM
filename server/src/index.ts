@@ -11,6 +11,10 @@ import backupRouter from './routes/backup';
 import purchasesRouter from './routes/purchases';
 import billsRouter from './routes/bills';
 import authRouter from './routes/auth';
+import categoriesRouter from './routes/categories';
+import customersRouter from './routes/customers';
+import expensesRouter from './routes/expenses';
+import dashboardRouter from './routes/dashboard';
 import { authMiddleware } from './middleware/auth';
 import { scheduleDailyBackup } from './services/backup';
 
@@ -29,6 +33,10 @@ app.use('/api/auth', authRouter);
 app.use('/api/items', authMiddleware, itemsRouter);
 app.use('/api/purchases', authMiddleware, purchasesRouter);
 app.use('/api/bills', authMiddleware, billsRouter);
+app.use('/api/categories', authMiddleware, categoriesRouter);
+app.use('/api/customers', authMiddleware, customersRouter);
+app.use('/api/expenses', authMiddleware, expensesRouter);
+app.use('/api/dashboard', authMiddleware, dashboardRouter);
 app.use('/api/excel', authMiddleware, excelRouter);
 app.use('/api/backup', authMiddleware, backupRouter);
 
@@ -57,8 +65,8 @@ function getLocalIP(): string {
 }
 
 // Start server (async to init database)
-async function start() {
-  await initDatabase();
+function start() {
+  initDatabase();
 
   // Load SSL certificates
   const certDir = path.join(__dirname, '..', 'certs');
@@ -104,9 +112,6 @@ async function start() {
   });
 }
 
-start().catch(err => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+start();
 
 export default app;

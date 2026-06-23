@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { queryAll, queryOne, runQuery, getDb } from '../db';
+import { queryAll, queryOne, runQuery, runTransaction } from '../db';
 
 const router = Router();
 
@@ -22,7 +22,7 @@ function generateBillNumber(): string {
 
 // GET /api/bills - List bills with filters
 router.get('/', (req: Request, res: Response) => {
-  const { from_date, to_date, search } = req.query;
+  const { from_date, to_date, search, payment_status } = req.query;
 
   let query = 'SELECT * FROM bills';
   const conditions: string[] = [];
@@ -40,6 +40,10 @@ router.get('/', (req: Request, res: Response) => {
     conditions.push('(customer_name LIKE ? OR customer_phone LIKE ? OR bill_number LIKE ?)');
     params.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
+  if (payment_status && typeof payment_status === 'string') {
+    conditions.push('payment_status = ?');
+    params.push(payment_status);
+  }
 
   if (conditions.length > 0) {
     query += ' WHERE ' + conditions.join(' AND ');
@@ -48,46 +52,32 @@ router.get('/', (req: Request, res: Response) => {
 
   const bills = queryAll(query, params);
   const totalRevenue = bills.reduce((sum: number, b: any) => sum + (b.total || 0), 0);
+  const totalPending = bills.reduce((sum: number, b: any) => sum + ((b.total || 0) - (b.amount_paid || 0)), 0);
 
-  res.json({ bills, total: bills.length, totalRevenue });
+  res.json({ bills, total: bills.length, totalRevenue, totalPending });
 });
 
-// GET /api/bills/stock/available - Get available stock from purchases
+// GET /api/bills/stock/available - Get available stock
 router.get('/stock/available', (_req: Request, res: Response) => {
-  // Calculate stock: purchased qty minus billed qty
   const stock = queryAll(`
-    SELECT * FROM (
-      SELECT
-        i.id as item_id,
-        i.item_name,
-        i.package_quantity_grams,
-        i.selling_price,
-        i.mrp,
-        i.packaging_style,
-        COALESCE(p.purchased_qty, 0) as purchased_qty,
-        COALESCE(b.billed_qty, 0) as billed_qty,
-        COALESCE(p.purchased_qty, 0) - COALESCE(b.billed_qty, 0) as available_qty
-      FROM items i
-      LEFT JOIN (
-        SELECT item_id, SUM(quantity) as purchased_qty FROM purchases GROUP BY item_id
-      ) p ON p.item_id = i.id
-      LEFT JOIN (
-        SELECT item_id, SUM(quantity) as billed_qty FROM bill_items GROUP BY item_id
-      ) b ON b.item_id = i.id
-    ) WHERE available_qty > 0
+    SELECT id as item_id, item_name, package_quantity_grams, selling_price, mrp,
+           packaging_style, current_stock as available_qty
+    FROM items
+    WHERE current_stock > 0
     ORDER BY item_name
   `, []);
   res.json({ stock });
 });
 
-// GET /api/bills/:id - Get bill with items
+// GET /api/bills/:id - Get bill with items and payments
 router.get('/:id', (req: Request, res: Response) => {
   const bill = queryOne('SELECT * FROM bills WHERE id = ?', [req.params.id]);
   if (!bill) {
     return res.status(404).json({ error: 'Bill not found' });
   }
   const items = queryAll('SELECT * FROM bill_items WHERE bill_id = ?', [bill.id]);
-  res.json({ ...bill, items });
+  const payments = queryAll('SELECT * FROM payments WHERE bill_id = ? ORDER BY payment_date DESC', [bill.id]);
+  res.json({ ...bill, items, payments });
 });
 
 // GET /api/bills/:id/print - Get printable bill data
@@ -100,9 +90,13 @@ router.get('/:id/print', (req: Request, res: Response) => {
   res.json({ ...bill, items });
 });
 
-// POST /api/bills - Create a new bill
+// POST /api/bills - Create a new bill with GST and stock validation
 router.post('/', (req: Request, res: Response) => {
-  const { customer_name, customer_phone, customer_address, items, discount_percent, notes, bill_date } = req.body;
+  const {
+    customer_name, customer_phone, customer_address, customer_id,
+    items, discount_percent, tax_percent, notes, bill_date,
+    payment_method, amount_paid
+  } = req.body;
 
   if (!customer_name || !customer_name.trim()) {
     return res.status(400).json({ error: 'Customer name is required' });
@@ -111,7 +105,7 @@ router.post('/', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'At least one item is required' });
   }
 
-  // Validate items and calculate subtotal
+  // Validate items and check stock
   let subtotal = 0;
   const validatedItems: Array<{
     item_id: number; item_name: string; quantity: number;
@@ -128,6 +122,13 @@ router.post('/', (req: Request, res: Response) => {
       return res.status(404).json({ error: `Item with id ${lineItem.item_id} not found` });
     }
 
+    // Stock validation
+    if (item.current_stock < lineItem.quantity) {
+      return res.status(400).json({
+        error: `Insufficient stock for "${item.item_name}". Available: ${item.current_stock}, Requested: ${lineItem.quantity}`
+      });
+    }
+
     const price = lineItem.selling_price !== undefined ? parseFloat(lineItem.selling_price) : item.selling_price;
     const lineTotal = price * lineItem.quantity;
     subtotal += lineTotal;
@@ -142,33 +143,74 @@ router.post('/', (req: Request, res: Response) => {
     });
   }
 
+  // Calculate discount
   const discount = Math.min(Math.max(parseFloat(discount_percent) || 0, 0), 100);
   const discountAmount = (subtotal * discount) / 100;
-  const total = subtotal - discountAmount;
+  const afterDiscount = subtotal - discountAmount;
+
+  // Calculate GST (split equally into CGST + SGST)
+  const tax = parseFloat(tax_percent) || 0;
+  const taxTotal = (afterDiscount * tax) / 100;
+  const cgst = taxTotal / 2;
+  const sgst = taxTotal / 2;
+
+  const total = afterDiscount + taxTotal;
   const billNumber = generateBillNumber();
   const date = bill_date || new Date().toISOString().split('T')[0];
 
-  // Insert bill
-  const result = runQuery(
-    `INSERT INTO bills (bill_number, customer_name, customer_phone, customer_address, subtotal, discount_percent, discount_amount, total, bill_date, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [billNumber, customer_name.trim(), customer_phone || '', customer_address || '', subtotal, discount, discountAmount, total, date, notes || '']
-  );
+  // Determine payment status
+  const paid = parseFloat(amount_paid) || 0;
+  let paymentStatus = 'pending';
+  if (paid >= total) paymentStatus = 'paid';
+  else if (paid > 0) paymentStatus = 'partial';
 
-  const billId = result.lastInsertRowid;
+  let newBill: any;
+  let billItems: any[];
 
-  // Insert line items
-  for (const vi of validatedItems) {
-    runQuery(
-      `INSERT INTO bill_items (bill_id, item_id, item_name, quantity, package_quantity_grams, selling_price, line_total)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [billId, vi.item_id, vi.item_name, vi.quantity, vi.package_quantity_grams, vi.selling_price, vi.line_total]
+  runTransaction(() => {
+    // Insert bill
+    const result = runQuery(
+      `INSERT INTO bills (bill_number, customer_name, customer_phone, customer_address, customer_id,
+        subtotal, discount_percent, discount_amount, tax_percent, cgst_amount, sgst_amount, tax_total,
+        total, payment_status, amount_paid, bill_date, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [billNumber, customer_name.trim(), customer_phone || '', customer_address || '', customer_id || null,
+        subtotal, discount, discountAmount, tax, cgst, sgst, taxTotal,
+        total, paymentStatus, paid, date, notes || '']
     );
-  }
 
-  const newBill = queryOne('SELECT * FROM bills WHERE id = ?', [billId]);
-  const billItems = queryAll('SELECT * FROM bill_items WHERE bill_id = ?', [billId]);
-  res.status(201).json({ ...newBill, items: billItems });
+    const billId = result.lastInsertRowid;
+
+    // Insert line items and deduct stock
+    for (const vi of validatedItems) {
+      runQuery(
+        `INSERT INTO bill_items (bill_id, item_id, item_name, quantity, package_quantity_grams, selling_price, line_total)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [billId, vi.item_id, vi.item_name, vi.quantity, vi.package_quantity_grams, vi.selling_price, vi.line_total]
+      );
+      // Deduct stock
+      runQuery('UPDATE items SET current_stock = current_stock - ? WHERE id = ?', [vi.quantity, vi.item_id]);
+    }
+
+    // Record payment if amount paid
+    if (paid > 0) {
+      runQuery(
+        `INSERT INTO payments (bill_id, amount, payment_method, payment_date, notes)
+         VALUES (?, ?, ?, ?, '')`,
+        [billId, paid, payment_method || 'cash', date]
+      );
+    }
+
+    // Update customer credit balance if credit payment
+    if (customer_id && payment_method === 'credit') {
+      runQuery('UPDATE customers SET credit_balance = credit_balance + ? WHERE id = ?', [total - paid, customer_id]);
+    }
+
+    newBill = queryOne('SELECT * FROM bills WHERE id = ?', [billId]);
+    billItems = queryAll('SELECT * FROM bill_items WHERE bill_id = ?', [billId]);
+  });
+
+  res.status(201).json({ ...newBill, items: billItems! });
 });
 
 // PUT /api/bills/:id - Update bill
@@ -178,7 +220,10 @@ router.put('/:id', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Bill not found' });
   }
 
-  const { customer_name, customer_phone, customer_address, items, discount_percent, notes, bill_date } = req.body;
+  const {
+    customer_name, customer_phone, customer_address, customer_id,
+    items, discount_percent, tax_percent, notes, bill_date
+  } = req.body;
 
   if (!customer_name || !customer_name.trim()) {
     return res.status(400).json({ error: 'Customer name is required' });
@@ -192,6 +237,9 @@ router.put('/:id', (req: Request, res: Response) => {
     item_id: number; item_name: string; quantity: number;
     package_quantity_grams: number; selling_price: number; line_total: number;
   }> = [];
+
+  // Get old bill items to restore stock
+  const oldItems = queryAll('SELECT * FROM bill_items WHERE bill_id = ?', [req.params.id]);
 
   for (const lineItem of items) {
     if (!lineItem.item_id || !lineItem.quantity || lineItem.quantity <= 0) {
@@ -212,27 +260,96 @@ router.put('/:id', (req: Request, res: Response) => {
 
   const discount = Math.min(Math.max(parseFloat(discount_percent) || 0, 0), 100);
   const discountAmount = (subtotal * discount) / 100;
-  const total = subtotal - discountAmount;
+  const afterDiscount = subtotal - discountAmount;
+
+  const tax = parseFloat(tax_percent) || 0;
+  const taxTotal = (afterDiscount * tax) / 100;
+  const cgst = taxTotal / 2;
+  const sgst = taxTotal / 2;
+  const total = afterDiscount + taxTotal;
   const date = bill_date || existing.bill_date;
 
-  runQuery(
-    `UPDATE bills SET customer_name=?, customer_phone=?, customer_address=?, subtotal=?, discount_percent=?, discount_amount=?, total=?, bill_date=?, notes=? WHERE id=?`,
-    [customer_name.trim(), customer_phone || '', customer_address || '', subtotal, discount, discountAmount, total, date, notes || '', req.params.id]
-  );
+  let updated: any;
+  let billItems: any[];
 
-  // Delete old items and insert new
-  runQuery('DELETE FROM bill_items WHERE bill_id = ?', [req.params.id]);
-  for (const vi of validatedItems) {
+  runTransaction(() => {
+    // Restore stock from old bill items
+    for (const old of oldItems) {
+      runQuery('UPDATE items SET current_stock = current_stock + ? WHERE id = ?', [old.quantity, old.item_id]);
+    }
+
+    // Delete old items
+    runQuery('DELETE FROM bill_items WHERE bill_id = ?', [req.params.id]);
+
+    // Insert new items and deduct stock
+    for (const vi of validatedItems) {
+      runQuery(
+        `INSERT INTO bill_items (bill_id, item_id, item_name, quantity, package_quantity_grams, selling_price, line_total)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [req.params.id, vi.item_id, vi.item_name, vi.quantity, vi.package_quantity_grams, vi.selling_price, vi.line_total]
+      );
+      runQuery('UPDATE items SET current_stock = current_stock - ? WHERE id = ?', [vi.quantity, vi.item_id]);
+    }
+
+    // Update bill
     runQuery(
-      `INSERT INTO bill_items (bill_id, item_id, item_name, quantity, package_quantity_grams, selling_price, line_total)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [req.params.id, vi.item_id, vi.item_name, vi.quantity, vi.package_quantity_grams, vi.selling_price, vi.line_total]
+      `UPDATE bills SET customer_name=?, customer_phone=?, customer_address=?, customer_id=?,
+        subtotal=?, discount_percent=?, discount_amount=?, tax_percent=?, cgst_amount=?, sgst_amount=?, tax_total=?,
+        total=?, bill_date=?, notes=?
+      WHERE id=?`,
+      [customer_name.trim(), customer_phone || '', customer_address || '', customer_id || null,
+        subtotal, discount, discountAmount, tax, cgst, sgst, taxTotal,
+        total, date, notes || '', req.params.id]
     );
+
+    updated = queryOne('SELECT * FROM bills WHERE id = ?', [req.params.id]);
+    billItems = queryAll('SELECT * FROM bill_items WHERE bill_id = ?', [req.params.id]);
+  });
+
+  res.json({ ...updated, items: billItems! });
+});
+
+// POST /api/bills/:id/payment - Record a payment for a bill
+router.post('/:id/payment', (req: Request, res: Response) => {
+  const bill = queryOne('SELECT * FROM bills WHERE id = ?', [req.params.id]);
+  if (!bill) {
+    return res.status(404).json({ error: 'Bill not found' });
   }
 
-  const updated = queryOne('SELECT * FROM bills WHERE id = ?', [req.params.id]);
-  const billItems = queryAll('SELECT * FROM bill_items WHERE bill_id = ?', [req.params.id]);
-  res.json({ ...updated, items: billItems });
+  const { amount, payment_method, payment_date, notes } = req.body;
+
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: 'Payment amount must be greater than 0' });
+  }
+
+  const remaining = bill.total - bill.amount_paid;
+  if (amount > remaining) {
+    return res.status(400).json({ error: `Payment exceeds remaining balance of ₹${remaining.toFixed(2)}` });
+  }
+
+  runTransaction(() => {
+    runQuery(
+      `INSERT INTO payments (bill_id, amount, payment_method, payment_date, notes)
+       VALUES (?, ?, ?, ?, ?)`,
+      [bill.id, amount, payment_method || 'cash', payment_date || new Date().toISOString().split('T')[0], notes || '']
+    );
+
+    const newPaid = bill.amount_paid + amount;
+    const newStatus = newPaid >= bill.total ? 'paid' : 'partial';
+    runQuery(
+      'UPDATE bills SET amount_paid = ?, payment_status = ? WHERE id = ?',
+      [newPaid, newStatus, bill.id]
+    );
+
+    // If customer has credit, reduce it on payment
+    if (bill.customer_id && payment_method !== 'credit') {
+      runQuery('UPDATE customers SET credit_balance = MAX(0, credit_balance - ?) WHERE id = ?', [amount, bill.customer_id]);
+    }
+  });
+
+  const updatedBill = queryOne('SELECT * FROM bills WHERE id = ?', [bill.id]);
+  const payments = queryAll('SELECT * FROM payments WHERE bill_id = ?', [bill.id]);
+  res.json({ ...updatedBill, payments });
 });
 
 // PATCH /api/bills/:id/whatsapp - Mark WhatsApp as sent
@@ -245,14 +362,30 @@ router.patch('/:id/whatsapp', (req: Request, res: Response) => {
   res.json({ message: 'WhatsApp status updated' });
 });
 
-// DELETE /api/bills/:id - Delete bill
+// DELETE /api/bills/:id - Delete bill and restore stock
 router.delete('/:id', (req: Request, res: Response) => {
   const existing = queryOne('SELECT * FROM bills WHERE id = ?', [req.params.id]);
   if (!existing) {
     return res.status(404).json({ error: 'Bill not found' });
   }
-  runQuery('DELETE FROM bill_items WHERE bill_id = ?', [req.params.id]);
-  runQuery('DELETE FROM bills WHERE id = ?', [req.params.id]);
+
+  const billItems = queryAll('SELECT * FROM bill_items WHERE bill_id = ?', [req.params.id]);
+
+  runTransaction(() => {
+    // Restore stock
+    for (const item of billItems) {
+      runQuery('UPDATE items SET current_stock = current_stock + ? WHERE id = ?', [item.quantity, item.item_id]);
+    }
+    // Restore customer credit if applicable
+    if (existing.customer_id && existing.payment_status !== 'paid') {
+      const unpaid = existing.total - existing.amount_paid;
+      runQuery('UPDATE customers SET credit_balance = MAX(0, credit_balance - ?) WHERE id = ?', [unpaid, existing.customer_id]);
+    }
+    runQuery('DELETE FROM payments WHERE bill_id = ?', [req.params.id]);
+    runQuery('DELETE FROM bill_items WHERE bill_id = ?', [req.params.id]);
+    runQuery('DELETE FROM bills WHERE id = ?', [req.params.id]);
+  });
+
   res.json({ message: 'Bill deleted successfully' });
 });
 

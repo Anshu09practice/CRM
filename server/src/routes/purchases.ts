@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { queryAll, queryOne, runQuery } from '../db';
+import { queryAll, queryOne, runQuery, runTransaction } from '../db';
+import { requireRole } from '../middleware/auth';
 
 const router = Router();
 
@@ -77,23 +78,29 @@ router.post('/', (req: Request, res: Response) => {
   const total = cost * quantity;
   const date = purchase_date || new Date().toISOString().split('T')[0];
 
-  const result = runQuery(
-    `INSERT INTO purchases (item_id, item_name, quantity, package_quantity_grams, purchase_cost, total_cost, packaging_style, purchase_date, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      item_id,
-      item.item_name,
-      quantity,
-      item.package_quantity_grams,
-      cost,
-      total,
-      item.packaging_style,
-      date,
-      notes || ''
-    ]
-  );
+  let newPurchase: any;
+  runTransaction(() => {
+    const result = runQuery(
+      `INSERT INTO purchases (item_id, item_name, quantity, package_quantity_grams, purchase_cost, total_cost, packaging_style, purchase_date, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        item_id,
+        item.item_name,
+        quantity,
+        item.package_quantity_grams,
+        cost,
+        total,
+        item.packaging_style,
+        date,
+        notes || ''
+      ]
+    );
 
-  const newPurchase = queryOne('SELECT * FROM purchases WHERE id = ?', [result.lastInsertRowid]);
+    // Auto-update stock
+    runQuery('UPDATE items SET current_stock = current_stock + ? WHERE id = ?', [quantity, item_id]);
+
+    newPurchase = queryOne('SELECT * FROM purchases WHERE id = ?', [result.lastInsertRowid]);
+  });
   res.status(201).json(newPurchase);
 });
 
@@ -122,27 +129,41 @@ router.put('/:id', (req: Request, res: Response) => {
   const total = cost * quantity;
   const date = purchase_date || existing.purchase_date;
 
-  runQuery(
-    `UPDATE purchases SET
-      item_id = ?, item_name = ?, quantity = ?, package_quantity_grams = ?,
-      purchase_cost = ?, total_cost = ?, packaging_style = ?,
-      purchase_date = ?, notes = ?
-    WHERE id = ?`,
-    [
-      item_id,
-      item.item_name,
-      quantity,
-      item.package_quantity_grams,
-      cost,
-      total,
-      item.packaging_style,
-      date,
-      notes || '',
-      req.params.id
-    ]
-  );
+  let updated: any;
+  runTransaction(() => {
+    // Adjust stock: remove old quantity, add new quantity
+    const oldQty = existing.quantity;
+    const stockDiff = quantity - oldQty;
+    if (existing.item_id !== item_id) {
+      // Item changed - revert old item stock, add to new item
+      runQuery('UPDATE items SET current_stock = current_stock - ? WHERE id = ?', [oldQty, existing.item_id]);
+      runQuery('UPDATE items SET current_stock = current_stock + ? WHERE id = ?', [quantity, item_id]);
+    } else if (stockDiff !== 0) {
+      runQuery('UPDATE items SET current_stock = current_stock + ? WHERE id = ?', [stockDiff, item_id]);
+    }
 
-  const updated = queryOne('SELECT * FROM purchases WHERE id = ?', [req.params.id]);
+    runQuery(
+      `UPDATE purchases SET
+        item_id = ?, item_name = ?, quantity = ?, package_quantity_grams = ?,
+        purchase_cost = ?, total_cost = ?, packaging_style = ?,
+        purchase_date = ?, notes = ?
+      WHERE id = ?`,
+      [
+        item_id,
+        item.item_name,
+        quantity,
+        item.package_quantity_grams,
+        cost,
+        total,
+        item.packaging_style,
+        date,
+        notes || '',
+        req.params.id
+      ]
+    );
+
+    updated = queryOne('SELECT * FROM purchases WHERE id = ?', [req.params.id]);
+  });
   res.json(updated);
 });
 
@@ -153,7 +174,11 @@ router.delete('/:id', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Purchase not found' });
   }
 
-  runQuery('DELETE FROM purchases WHERE id = ?', [req.params.id]);
+  runTransaction(() => {
+    runQuery('DELETE FROM purchases WHERE id = ?', [req.params.id]);
+    // Revert stock
+    runQuery('UPDATE items SET current_stock = current_stock - ? WHERE id = ?', [existing.quantity, existing.item_id]);
+  });
   res.json({ message: 'Purchase deleted successfully' });
 });
 

@@ -7,8 +7,15 @@ echo.
 :: Add Node.js to PATH if needed
 set PATH=C:\Program Files\nodejs;%PATH%
 
-:: Generate SSL certificates if needed
+:: Install dependencies if node_modules is missing
 cd /d "%~dp0server"
+if not exist "node_modules" (
+  echo Installing server dependencies...
+  call npm install
+  echo.
+)
+
+:: Generate SSL certificates if needed
 echo Checking SSL certificates...
 node generate-cert.js
 if errorlevel 1 (
