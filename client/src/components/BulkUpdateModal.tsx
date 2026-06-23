@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { api } from '../services/api';
+import * as XLSX from 'xlsx';
 
 interface BulkUpdateModalProps {
   onClose: () => void;
@@ -8,6 +9,7 @@ interface BulkUpdateModalProps {
 
 interface ParsedRow {
   id?: string;
+  sku_id?: string;
   item_name: string;
   package_quantity_grams: string;
   purchase_cost: string;
@@ -79,22 +81,58 @@ export default function BulkUpdateModal({ onClose, onUpdated }: BulkUpdateModalP
     if (!file) return;
 
     setError('');
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const text = evt.target?.result as string;
-        const parsed = parseCsv(text);
-        if (parsed.length === 0) {
-          setError('No valid rows found. Make sure the CSV has headers: id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style');
-          return;
+    const isExcel = file.name.match(/\.(xlsx|xls)$/i);
+
+    if (isExcel) {
+      // Parse Excel file using xlsx library
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as any[];
+          if (jsonData.length === 0) {
+            setError('No valid rows found in the Excel file.');
+            return;
+          }
+          // Normalize headers to lowercase
+          const parsed: ParsedRow[] = jsonData.map(row => {
+            const normalized: any = {};
+            Object.keys(row).forEach(key => { normalized[key.toLowerCase().trim()] = String(row[key]); });
+            return normalized;
+          }).filter(row => row.item_name);
+          if (parsed.length === 0) {
+            setError('No valid rows found. Make sure the file has a column named "item_name".');
+            return;
+          }
+          setRows(parsed);
+          setStep('preview');
+        } catch (err: any) {
+          setError(`Failed to parse Excel: ${err.message}`);
         }
-        setRows(parsed);
-        setStep('preview');
-      } catch (err: any) {
-        setError(`Failed to parse CSV: ${err.message}`);
-      }
-    };
-    reader.readAsText(file);
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      // Parse CSV file
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const text = evt.target?.result as string;
+          const parsed = parseCsv(text);
+          if (parsed.length === 0) {
+            setError('No valid rows found. Make sure the file has headers: id,sku_id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style');
+            return;
+          }
+          setRows(parsed);
+          setStep('preview');
+        } catch (err: any) {
+          setError(`Failed to parse CSV: ${err.message}`);
+        }
+      };
+      reader.readAsText(file);
+    }
   };
 
   const handleBulkUpdate = async () => {
@@ -133,7 +171,7 @@ export default function BulkUpdateModal({ onClose, onUpdated }: BulkUpdateModalP
       <div className="bg-white w-full sm:max-w-2xl sm:rounded-xl rounded-t-xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between rounded-t-xl z-10">
-          <h2 className="text-lg font-semibold">CSV Bulk Update</h2>
+          <h2 className="text-lg font-semibold">Bulk Update</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
         </div>
 
@@ -149,7 +187,7 @@ export default function BulkUpdateModal({ onClose, onUpdated }: BulkUpdateModalP
                 <p className="text-sm font-medium text-blue-800">How it works:</p>
                 <ul className="text-xs text-blue-700 mt-1 space-y-1 list-disc list-inside">
                   <li>Download the template or export your current items</li>
-                  <li>Edit the CSV file (add/modify items)</li>
+                  <li>Edit the CSV/Excel file (add/modify items)</li>
                   <li>Upload it back — existing items are updated, new ones are added</li>
                   <li>Matching is done by <strong>id</strong> first, then by <strong>item_name</strong></li>
                 </ul>
@@ -167,11 +205,11 @@ export default function BulkUpdateModal({ onClose, onUpdated }: BulkUpdateModalP
 
               {/* Upload */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Upload CSV File</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Upload CSV or Excel File</label>
                 <input
                   ref={fileRef}
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   onChange={handleFile}
                   className="input-field"
                 />
@@ -179,12 +217,13 @@ export default function BulkUpdateModal({ onClose, onUpdated }: BulkUpdateModalP
 
               {/* Template format info */}
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                <p className="text-xs font-medium text-slate-700 mb-1">Expected CSV format:</p>
+                <p className="text-xs font-medium text-slate-700 mb-1">Expected CSV/Excel format:</p>
                 <code className="text-[11px] text-slate-600 block overflow-x-auto">
-                  id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style
+                  id,sku_id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style
                 </code>
                 <p className="text-[11px] text-slate-500 mt-1">
                   • <strong>id</strong>: Leave blank for new items, or use existing id to update<br />
+                  • <strong>sku_id</strong>: Unique product identifier (e.g., SKU-0001)<br />
                   • <strong>packaging_style</strong>: "packet" or "standing_package"
                 </p>
               </div>

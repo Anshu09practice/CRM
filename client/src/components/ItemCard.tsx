@@ -17,7 +17,10 @@ export default function ItemCard({ item, onEdit, onDelete }: ItemCardProps) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md hover:border-indigo-200 transition-all">
       <div className="flex justify-between items-start mb-2">
-        <h3 className="font-semibold text-gray-900 text-sm leading-tight">{item.item_name}</h3>
+        <div>
+          <h3 className="font-semibold text-gray-900 text-sm leading-tight">{item.item_name}</h3>
+          {item.sku_id && <p className="text-[10px] text-gray-400 mt-0.5">{item.sku_id}</p>}
+        </div>
         <div className="flex items-center gap-1.5">
           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
             item.packaging_style === 'packet' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'

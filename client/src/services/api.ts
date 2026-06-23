@@ -1,15 +1,31 @@
 import { localApi } from './localDb';
 
-// Detect if running as a Capacitor/mobile app (offline mode)
+// Detect if running in offline mode
 export const isOfflineMode = (): boolean => {
-  // Check if running inside Capacitor native shell
-  if ((window as any).Capacitor?.isNativePlatform?.()) return true;
   // Allow forcing offline mode via localStorage
   if (localStorage.getItem('jj_offline_mode') === 'true') return true;
+  // Check if running inside Capacitor native shell AND no network
+  if ((window as any).Capacitor?.isNativePlatform?.()) {
+    // If a server URL is configured, use online mode when network is available
+    const serverUrl = localStorage.getItem('jj_server_url');
+    if (serverUrl && navigator.onLine) return false;
+    // Default: use local DB for native apps without configured server
+    return true;
+  }
   return false;
 };
 
-const API_BASE = '/api';
+// Get the API base URL (supports configurable server for mobile)
+export const getApiBase = (): string => {
+  const serverUrl = localStorage.getItem('jj_server_url');
+  if (serverUrl && (window as any).Capacitor?.isNativePlatform?.() && navigator.onLine) {
+    return `${serverUrl}/api`;
+  }
+  return '/api';
+};
+
+// API_BASE is dynamic to support configurable server URL
+const get_API_BASE = () => getApiBase();
 
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('jj_token');
@@ -30,6 +46,7 @@ export interface Item {
   packaging_style: 'packet' | 'standing_package';
   packets_per_bundle: number;
   bundle_weight_grams: number;
+  sku_id?: string | null;
   category_id?: number | null;
   current_stock?: number;
   low_stock_threshold?: number;
@@ -174,18 +191,18 @@ const serverApi = {
     if (search) params.set('search', search);
     if (packaging_style) params.set('packaging_style', packaging_style);
     if (category_id) params.set('category_id', category_id);
-    const url = `${API_BASE}/items${params.toString() ? '?' + params.toString() : ''}`;
+    const url = `${get_API_BASE()}/items${params.toString() ? '?' + params.toString() : ''}`;
     const res = await fetch(url, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async getItem(id: number): Promise<Item> {
-    const res = await fetch(`${API_BASE}/items/${id}`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/items/${id}`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async createItem(item: Partial<Item>): Promise<Item> {
-    const res = await fetch(`${API_BASE}/items`, {
+    const res = await fetch(`${get_API_BASE()}/items`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(item)
     });
@@ -193,7 +210,7 @@ const serverApi = {
   },
 
   async updateItem(id: number, item: Partial<Item>): Promise<Item> {
-    const res = await fetch(`${API_BASE}/items/${id}`, {
+    const res = await fetch(`${get_API_BASE()}/items/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(item)
     });
@@ -201,12 +218,12 @@ const serverApi = {
   },
 
   async deleteItem(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/items/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/items/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async importItems(items: Partial<Item>[]): Promise<{ imported: number; errors: string[] }> {
-    const res = await fetch(`${API_BASE}/items/import`, {
+    const res = await fetch(`${get_API_BASE()}/items/import`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ items })
     });
@@ -214,7 +231,7 @@ const serverApi = {
   },
 
   async bulkUpdate(items: Partial<Item>[]): Promise<{ updated: number; created: number; errors: string[] }> {
-    const res = await fetch(`${API_BASE}/items/bulk-update`, {
+    const res = await fetch(`${get_API_BASE()}/items/bulk-update`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ items })
     });
@@ -222,18 +239,18 @@ const serverApi = {
   },
 
   async getLowStockItems(): Promise<ItemsResponse> {
-    const res = await fetch(`${API_BASE}/items/low-stock`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/items/low-stock`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   // ===== Categories =====
   async getCategories(): Promise<Category[]> {
-    const res = await fetch(`${API_BASE}/categories`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/categories`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async createCategory(data: { name: string; description?: string }): Promise<Category> {
-    const res = await fetch(`${API_BASE}/categories`, {
+    const res = await fetch(`${get_API_BASE()}/categories`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
@@ -241,7 +258,7 @@ const serverApi = {
   },
 
   async updateCategory(id: number, data: { name: string; description?: string }): Promise<Category> {
-    const res = await fetch(`${API_BASE}/categories/${id}`, {
+    const res = await fetch(`${get_API_BASE()}/categories/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
@@ -249,24 +266,24 @@ const serverApi = {
   },
 
   async deleteCategory(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/categories/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/categories/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   // ===== Customers =====
   async getCustomers(search?: string): Promise<Customer[]> {
     const params = search ? `?search=${encodeURIComponent(search)}` : '';
-    const res = await fetch(`${API_BASE}/customers${params}`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/customers${params}`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async getCustomer(id: number): Promise<Customer> {
-    const res = await fetch(`${API_BASE}/customers/${id}`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/customers/${id}`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async createCustomer(data: { name: string; phone?: string; address?: string; notes?: string }): Promise<Customer> {
-    const res = await fetch(`${API_BASE}/customers`, {
+    const res = await fetch(`${get_API_BASE()}/customers`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
@@ -274,7 +291,7 @@ const serverApi = {
   },
 
   async updateCustomer(id: number, data: { name: string; phone?: string; address?: string; notes?: string }): Promise<Customer> {
-    const res = await fetch(`${API_BASE}/customers/${id}`, {
+    const res = await fetch(`${get_API_BASE()}/customers/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
@@ -282,7 +299,7 @@ const serverApi = {
   },
 
   async deleteCustomer(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/customers/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/customers/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
@@ -293,13 +310,13 @@ const serverApi = {
     if (params?.from_date) searchParams.set('from_date', params.from_date);
     if (params?.to_date) searchParams.set('to_date', params.to_date);
     if (params?.search) searchParams.set('search', params.search);
-    const url = `${API_BASE}/purchases${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+    const url = `${get_API_BASE()}/purchases${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
     const res = await fetch(url, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async createPurchase(data: CreatePurchaseInput): Promise<Purchase> {
-    const res = await fetch(`${API_BASE}/purchases`, {
+    const res = await fetch(`${get_API_BASE()}/purchases`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
@@ -307,7 +324,7 @@ const serverApi = {
   },
 
   async updatePurchase(id: number, data: CreatePurchaseInput): Promise<Purchase> {
-    const res = await fetch(`${API_BASE}/purchases/${id}`, {
+    const res = await fetch(`${get_API_BASE()}/purchases/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
@@ -315,7 +332,7 @@ const serverApi = {
   },
 
   async deletePurchase(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/purchases/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/purchases/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
@@ -326,23 +343,23 @@ const serverApi = {
     if (params?.to_date) searchParams.set('to_date', params.to_date);
     if (params?.search) searchParams.set('search', params.search);
     if (params?.payment_status) searchParams.set('payment_status', params.payment_status);
-    const url = `${API_BASE}/bills${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+    const url = `${get_API_BASE()}/bills${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
     const res = await fetch(url, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async getBill(id: number): Promise<Bill> {
-    const res = await fetch(`${API_BASE}/bills/${id}`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/bills/${id}`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async getAvailableStock(): Promise<{ stock: StockItem[] }> {
-    const res = await fetch(`${API_BASE}/bills/stock/available`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/bills/stock/available`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async createBill(data: CreateBillInput): Promise<Bill> {
-    const res = await fetch(`${API_BASE}/bills`, {
+    const res = await fetch(`${get_API_BASE()}/bills`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
@@ -350,7 +367,7 @@ const serverApi = {
   },
 
   async updateBill(id: number, data: CreateBillInput): Promise<Bill> {
-    const res = await fetch(`${API_BASE}/bills/${id}`, {
+    const res = await fetch(`${get_API_BASE()}/bills/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
@@ -358,7 +375,7 @@ const serverApi = {
   },
 
   async recordPayment(billId: number, data: { amount: number; payment_method: string; payment_date?: string; notes?: string }): Promise<Bill> {
-    const res = await fetch(`${API_BASE}/bills/${billId}/payment`, {
+    const res = await fetch(`${get_API_BASE()}/bills/${billId}/payment`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
@@ -366,34 +383,34 @@ const serverApi = {
   },
 
   async markWhatsAppSent(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/bills/${id}/whatsapp`, { method: 'PATCH', headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/bills/${id}/whatsapp`, { method: 'PATCH', headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async deleteBill(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/bills/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/bills/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   // ===== Dashboard =====
   async getDashboardSummary(): Promise<DashboardSummary> {
-    const res = await fetch(`${API_BASE}/dashboard/summary`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/dashboard/summary`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async getTopItems(period?: string): Promise<{ topItems: any[]; bottomItems: any[]; margins: any[] }> {
     const params = period ? `?period=${period}` : '';
-    const res = await fetch(`${API_BASE}/dashboard/top-items${params}`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/dashboard/top-items${params}`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async getSalesTrend(): Promise<{ date: string; count: number; revenue: number }[]> {
-    const res = await fetch(`${API_BASE}/dashboard/sales-trend`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/dashboard/sales-trend`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async getLowStockDashboard(): Promise<any[]> {
-    const res = await fetch(`${API_BASE}/dashboard/low-stock`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/dashboard/low-stock`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
@@ -403,18 +420,18 @@ const serverApi = {
     if (params?.from_date) searchParams.set('from_date', params.from_date);
     if (params?.to_date) searchParams.set('to_date', params.to_date);
     if (params?.category) searchParams.set('category', params.category);
-    const url = `${API_BASE}/expenses${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+    const url = `${get_API_BASE()}/expenses${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
     const res = await fetch(url, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async getExpenseCategories(): Promise<string[]> {
-    const res = await fetch(`${API_BASE}/expenses/categories`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/expenses/categories`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async createExpense(data: { category: string; amount: number; description?: string; expense_date?: string }): Promise<Expense> {
-    const res = await fetch(`${API_BASE}/expenses`, {
+    const res = await fetch(`${get_API_BASE()}/expenses`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
@@ -422,7 +439,7 @@ const serverApi = {
   },
 
   async updateExpense(id: number, data: { category: string; amount: number; description?: string; expense_date?: string }): Promise<Expense> {
-    const res = await fetch(`${API_BASE}/expenses/${id}`, {
+    const res = await fetch(`${get_API_BASE()}/expenses/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
@@ -430,18 +447,18 @@ const serverApi = {
   },
 
   async deleteExpense(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/expenses/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/expenses/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   // ===== Users (Owner only) =====
   async getUsers(): Promise<UserInfo[]> {
-    const res = await fetch(`${API_BASE}/auth/users`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/auth/users`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async createUser(data: { username: string; password: string; role: string; security_question?: string; security_answer?: string }): Promise<any> {
-    const res = await fetch(`${API_BASE}/auth/users`, {
+    const res = await fetch(`${get_API_BASE()}/auth/users`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
@@ -449,7 +466,7 @@ const serverApi = {
   },
 
   async updateUser(id: number, data: { role?: string; is_active?: boolean; password?: string }): Promise<any> {
-    const res = await fetch(`${API_BASE}/auth/users/${id}`, {
+    const res = await fetch(`${get_API_BASE()}/auth/users/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
@@ -457,13 +474,13 @@ const serverApi = {
   },
 
   async deleteUser(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/auth/users/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/auth/users/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   // ===== Auth Helpers =====
   async forgotPassword(username: string, security_answer?: string, new_password?: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+    const res = await fetch(`${get_API_BASE()}/auth/forgot-password`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, security_answer, new_password })
     });
@@ -471,7 +488,7 @@ const serverApi = {
   },
 
   async changePassword(current_password: string, new_password: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/auth/change-password`, {
+    const res = await fetch(`${get_API_BASE()}/auth/change-password`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ current_password, new_password })
     });
@@ -479,7 +496,7 @@ const serverApi = {
   },
 
   async refreshToken(refreshToken: string): Promise<{ token: string; refreshToken: string }> {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await fetch(`${get_API_BASE()}/auth/refresh`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken })
     });
@@ -490,17 +507,17 @@ const serverApi = {
   async parseExcel(file: File): Promise<{ headers: string[]; rows: any[]; total_rows: number }> {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await fetch(`${API_BASE}/excel/parse`, { method: 'POST', headers: { ...getAuthHeaders() }, body: formData });
+    const res = await fetch(`${get_API_BASE()}/excel/parse`, { method: 'POST', headers: { ...getAuthHeaders() }, body: formData });
     return handleResponse(res);
   },
 
   async getSourceFiles(): Promise<{ files: { name: string; size: number; modified: string }[] }> {
-    const res = await fetch(`${API_BASE}/excel/source-files`, { headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/excel/source-files`, { headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async parseSourceFile(filename: string): Promise<{ headers: string[]; rows: any[]; total_rows: number }> {
-    const res = await fetch(`${API_BASE}/excel/parse-source`, {
+    const res = await fetch(`${get_API_BASE()}/excel/parse-source`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ filename })
     });
@@ -509,20 +526,20 @@ const serverApi = {
 
   // ===== Backup =====
   async createBackup(): Promise<{ message: string }> {
-    const res = await fetch(`${API_BASE}/backup/export`, { method: 'POST', headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${get_API_BASE()}/backup/export`, { method: 'POST', headers: { ...getAuthHeaders() } });
     return handleResponse(res);
   },
 
   async restoreBackup(data: any): Promise<{ message: string; restored: number }> {
-    const res = await fetch(`${API_BASE}/backup/restore`, {
+    const res = await fetch(`${get_API_BASE()}/backup/restore`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
     return handleResponse(res);
   },
 
-  getTemplateCsvUrl(): string { return `${API_BASE}/items/template/csv`; },
-  getExportCsvUrl(): string { return `${API_BASE}/items/export/csv`; },
+  getTemplateCsvUrl(): string { return `${get_API_BASE()}/items/template/csv`; },
+  getExportCsvUrl(): string { return `${get_API_BASE()}/items/export/csv`; },
 
   async downloadWithAuth(url: string, filename: string): Promise<void> {
     const res = await fetch(url, { headers: { ...getAuthHeaders() } });

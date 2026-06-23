@@ -54,10 +54,10 @@ router.get('/low-stock', (_req: Request, res: Response) => {
 
 // GET /api/items/template/csv - Download a CSV template for bulk import/update
 router.get('/template/csv', (_req: Request, res: Response) => {
-  const header = 'id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style';
-  const example1 = ',Jeera Powder,50,8,10,12,packet';
-  const example2 = ',Haldi Powder,100,15,20,25,packet';
-  const example3 = ',Chilli Premium,100,30,45,50,standing_package';
+  const header = 'id,sku_id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style';
+  const example1 = ',SKU-0001,Jeera Powder,50,8,10,12,packet';
+  const example2 = ',SKU-0002,Haldi Powder,100,15,20,25,packet';
+  const example3 = ',SKU-0003,Chilli Premium,100,30,45,50,standing_package';
   const csv = [header, example1, example2, example3].join('\n');
 
   res.setHeader('Content-Type', 'text/csv');
@@ -67,10 +67,10 @@ router.get('/template/csv', (_req: Request, res: Response) => {
 
 // GET /api/items/export/csv - Export all items as CSV
 router.get('/export/csv', (_req: Request, res: Response) => {
-  const items = queryAll('SELECT id, item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style FROM items ORDER BY item_name');
-  const header = 'id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style';
+  const items = queryAll('SELECT id, sku_id, item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style FROM items ORDER BY item_name');
+  const header = 'id,sku_id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style';
   const rows = items.map((item: any) =>
-    `${item.id},"${(item.item_name || '').replace(/"/g, '""')}",${item.package_quantity_grams},${item.purchase_cost},${item.selling_price},${item.mrp},${item.packaging_style}`
+    `${item.id},${item.sku_id || ''},"${(item.item_name || '').replace(/"/g, '""')}",${item.package_quantity_grams},${item.purchase_cost},${item.selling_price},${item.mrp},${item.packaging_style}`
   );
   const csv = [header, ...rows].join('\n');
 
@@ -107,6 +107,7 @@ router.post('/bulk-update', (req: Request, res: Response) => {
       const purchase = parseFloat(item.purchase_cost) || 0;
       const selling = parseFloat(item.selling_price) || 0;
       const mrp = parseFloat(item.mrp) || 0;
+      const skuId = item.sku_id ? String(item.sku_id).trim() : null;
       const { packets_per_bundle, bundle_weight_grams } = calculateSizing(packaging, qty);
 
       // Try to find existing item by id or name
@@ -124,18 +125,18 @@ router.post('/bulk-update', (req: Request, res: Response) => {
           `UPDATE items SET
             item_name = ?, package_quantity_grams = ?, purchase_cost = ?,
             selling_price = ?, mrp = ?, packaging_style = ?,
-            packets_per_bundle = ?, bundle_weight_grams = ?,
+            packets_per_bundle = ?, bundle_weight_grams = ?, sku_id = ?,
             updated_at = CURRENT_TIMESTAMP
           WHERE id = ?`,
-          [name, qty, purchase, selling, mrp, packaging, packets_per_bundle, bundle_weight_grams, existing.id]
+          [name, qty, purchase, selling, mrp, packaging, packets_per_bundle, bundle_weight_grams, skuId || existing.sku_id, existing.id]
         );
         updated++;
       } else {
         // Insert new item
         runQuery(
-          `INSERT INTO items (item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, packets_per_bundle, bundle_weight_grams)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [name, qty, purchase, selling, mrp, packaging, packets_per_bundle, bundle_weight_grams]
+          `INSERT INTO items (item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, packets_per_bundle, bundle_weight_grams, sku_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [name, qty, purchase, selling, mrp, packaging, packets_per_bundle, bundle_weight_grams, skuId]
         );
         created++;
       }
@@ -182,10 +183,11 @@ router.post('/import', (req: Request, res: Response) => {
       const packaging = item.packaging_style || 'packet';
       const qty = item.package_quantity_grams || 0;
       const { packets_per_bundle, bundle_weight_grams } = calculateSizing(packaging, qty);
+      const skuId = item.sku_id ? String(item.sku_id).trim() : null;
 
       runQuery(
-        `INSERT INTO items (item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, packets_per_bundle, bundle_weight_grams)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO items (item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, packets_per_bundle, bundle_weight_grams, sku_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           item.item_name.trim(),
           qty,
@@ -194,7 +196,8 @@ router.post('/import', (req: Request, res: Response) => {
           item.mrp || 0,
           packaging,
           packets_per_bundle,
-          bundle_weight_grams
+          bundle_weight_grams,
+          skuId
         ]
       );
       imported++;
@@ -208,7 +211,7 @@ router.post('/import', (req: Request, res: Response) => {
 
 // POST /api/items - Create item
 router.post('/', (req: Request, res: Response) => {
-  const { item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, category_id } = req.body;
+  const { item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, category_id, sku_id } = req.body;
 
   // Validation
   if (!item_name || !item_name.trim()) {
@@ -227,9 +230,18 @@ router.post('/', (req: Request, res: Response) => {
   // Auto-calculate sizing
   const { packets_per_bundle, bundle_weight_grams } = calculateSizing(packaging_style, package_quantity_grams);
 
+  // Auto-generate SKU if not provided
+  let finalSkuId = sku_id ? String(sku_id).trim() : null;
+  if (!finalSkuId) {
+    const maxSku = queryOne("SELECT sku_id FROM items WHERE sku_id LIKE 'SKU-%' ORDER BY sku_id DESC LIMIT 1");
+    const match = maxSku?.sku_id?.match(/SKU-(\d+)/);
+    const nextNum = match ? parseInt(match[1]) + 1 : 1;
+    finalSkuId = `SKU-${String(nextNum).padStart(4, '0')}`;
+  }
+
   const result = runQuery(
-    `INSERT INTO items (item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, packets_per_bundle, bundle_weight_grams, category_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO items (item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, packets_per_bundle, bundle_weight_grams, category_id, sku_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       item_name.trim(),
       package_quantity_grams,
@@ -239,7 +251,8 @@ router.post('/', (req: Request, res: Response) => {
       packaging_style,
       packets_per_bundle,
       bundle_weight_grams,
-      category_id || null
+      category_id || null,
+      finalSkuId
     ]
   );
 
@@ -254,7 +267,7 @@ router.put('/:id', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Item not found' });
   }
 
-  const { item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, category_id } = req.body;
+  const { item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, category_id, sku_id } = req.body;
 
   // Validation
   if (!item_name || !item_name.trim()) {
@@ -277,7 +290,7 @@ router.put('/:id', (req: Request, res: Response) => {
     `UPDATE items SET
       item_name = ?, package_quantity_grams = ?, purchase_cost = ?,
       selling_price = ?, mrp = ?, packaging_style = ?,
-      packets_per_bundle = ?, bundle_weight_grams = ?, category_id = ?,
+      packets_per_bundle = ?, bundle_weight_grams = ?, category_id = ?, sku_id = ?,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?`,
     [
@@ -290,6 +303,7 @@ router.put('/:id', (req: Request, res: Response) => {
       packets_per_bundle,
       bundle_weight_grams,
       category_id || null,
+      sku_id ? String(sku_id).trim() : null,
       req.params.id
     ]
   );

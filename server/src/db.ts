@@ -322,6 +322,14 @@ const migrations: Migration[] = [
         COALESCE((SELECT SUM(quantity) FROM bill_items WHERE bill_items.item_id = items.id), 0)
       );
     `
+  },
+  {
+    version: 10,
+    name: 'add_sku_id',
+    sql: `
+      ALTER TABLE items ADD COLUMN sku_id TEXT DEFAULT NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_items_sku ON items(sku_id) WHERE sku_id IS NOT NULL;
+    `
   }
 ];
 

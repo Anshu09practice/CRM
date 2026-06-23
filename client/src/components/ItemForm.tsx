@@ -13,6 +13,7 @@ interface ItemFormProps {
 export default function ItemForm({ item, categories, onClose, onSaved }: ItemFormProps) {
   const [formData, setFormData] = useState({
     item_name: '',
+    sku_id: '',
     package_quantity_grams: 50,
     purchase_cost: 0,
     selling_price: 0,
@@ -27,6 +28,7 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
     if (item) {
       setFormData({
         item_name: item.item_name,
+        sku_id: item.sku_id || '',
         package_quantity_grams: item.package_quantity_grams,
         purchase_cost: item.purchase_cost,
         selling_price: item.selling_price,
@@ -34,8 +36,30 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
         packaging_style: item.packaging_style,
         category_id: item.category_id || null,
       });
+    } else {
+      // Auto-generate SKU for new items
+      generateNextSku();
     }
   }, [item]);
+
+  const generateNextSku = async () => {
+    try {
+      const res = await api.getItems();
+      const items = res.items || [];
+      const skuNumbers = items
+        .map(i => i.sku_id)
+        .filter(Boolean)
+        .map(s => {
+          const match = s!.match(/SKU-(\d+)/);
+          return match ? parseInt(match[1]) : 0;
+        });
+      const maxNum = skuNumbers.length > 0 ? Math.max(...skuNumbers) : 0;
+      const nextSku = `SKU-${String(maxNum + 1).padStart(4, '0')}`;
+      setFormData(prev => ({ ...prev, sku_id: prev.sku_id || nextSku }));
+    } catch {
+      setFormData(prev => ({ ...prev, sku_id: prev.sku_id || 'SKU-0001' }));
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -88,6 +112,12 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
           <div>
             <label className="label">Item Name *</label>
             <input type="text" name="item_name" value={formData.item_name} onChange={handleChange} className="input w-full" placeholder="e.g., Jeera Powder" required />
+          </div>
+
+          <div>
+            <label className="label">SKU ID</label>
+            <input type="text" name="sku_id" value={formData.sku_id} onChange={handleChange} className="input w-full" placeholder="e.g., SKU-0001 (auto-generated)" />
+            <p className="text-xs text-slate-500 mt-1">Unique product identifier. Auto-generated if left empty.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

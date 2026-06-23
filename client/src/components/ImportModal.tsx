@@ -8,6 +8,7 @@ interface ImportModalProps {
 
 interface ColumnMapping {
   item_name: string;
+  sku_id: string;
   package_quantity_grams: string;
   purchase_cost: string;
   selling_price: string;
@@ -24,6 +25,7 @@ export default function ImportModal({ onClose, onImported }: ImportModalProps) {
   const [error, setError] = useState('');
   const [mapping, setMapping] = useState<ColumnMapping>({
     item_name: '',
+    sku_id: '',
     package_quantity_grams: '',
     purchase_cost: '',
     selling_price: '',
@@ -90,6 +92,7 @@ export default function ImportModal({ onClose, onImported }: ImportModalProps) {
       hdrs[lower.findIndex(h => keywords.some(k => h.includes(k)))] || '';
 
     newMapping.item_name = findMatch(['item', 'name', 'product']);
+    newMapping.sku_id = findMatch(['sku', 'sku_id', 'skuid', 'code', 'barcode']);
     newMapping.package_quantity_grams = findMatch(['quantity', 'gram', 'weight', 'qty', 'pack']);
     newMapping.purchase_cost = findMatch(['purchase', 'cost', 'buy']);
     newMapping.selling_price = findMatch(['sell', 'price', 'sp']);
@@ -111,6 +114,7 @@ export default function ImportModal({ onClose, onImported }: ImportModalProps) {
     try {
       const items: Partial<Item>[] = rows.map(row => ({
         item_name: String(row[mapping.item_name] || ''),
+        sku_id: mapping.sku_id ? String(row[mapping.sku_id] || '') || null : null,
         package_quantity_grams: parseInt(row[mapping.package_quantity_grams]) || 50,
         purchase_cost: parseFloat(row[mapping.purchase_cost]) || 0,
         selling_price: parseFloat(row[mapping.selling_price]) || 0,
@@ -192,7 +196,7 @@ export default function ImportModal({ onClose, onImported }: ImportModalProps) {
                 Found {totalRows} rows. Map Excel columns to inventory fields:
               </p>
 
-              {(['item_name', 'package_quantity_grams', 'purchase_cost', 'selling_price', 'mrp', 'packaging_style'] as const).map(field => (
+              {(['item_name', 'sku_id', 'package_quantity_grams', 'purchase_cost', 'selling_price', 'mrp', 'packaging_style'] as const).map(field => (
                 <div key={field} className="flex items-center gap-3">
                   <label className="text-sm font-medium text-slate-700 w-40 capitalize">
                     {field.replace(/_/g, ' ')}

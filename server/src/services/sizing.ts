@@ -19,6 +19,7 @@ export interface CreateItemInput {
   selling_price: number;
   mrp: number;
   packaging_style: 'packet' | 'standing_package';
+  sku_id?: string | null;
 }
 
 /**

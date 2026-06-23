@@ -1,4 +1,5 @@
 import Dexie, { Table } from 'dexie';
+import * as XLSX from 'xlsx';
 
 // ===== Database Schema =====
 
@@ -12,6 +13,7 @@ export interface LocalItem {
   packaging_style: 'packet' | 'standing_package';
   packets_per_bundle: number;
   bundle_weight_grams: number;
+  sku_id?: string | null;
   category_id?: number | null;
   current_stock: number;
   low_stock_threshold: number;
@@ -141,7 +143,7 @@ class LocalCRMDatabase extends Dexie {
     super('JalanJyothiCRM_Local');
 
     this.version(1).stores({
-      items: '++id, item_name, packaging_style, category_id, current_stock',
+      items: '++id, item_name, packaging_style, category_id, current_stock, sku_id',
       categories: '++id, &name',
       customers: '++id, name, phone',
       purchases: '++id, item_id, purchase_date',
@@ -215,6 +217,21 @@ export const localApi = {
   },
 
   async createItem(item: Partial<LocalItem>) {
+    // Auto-generate SKU if not provided
+    let skuId = item.sku_id || null;
+    if (!skuId) {
+      const allItems = await localDb.items.toArray();
+      const skuNumbers = allItems
+        .map(i => i.sku_id)
+        .filter(Boolean)
+        .map(s => {
+          const match = s!.match(/SKU-(\d+)/);
+          return match ? parseInt(match[1]) : 0;
+        });
+      const maxNum = skuNumbers.length > 0 ? Math.max(...skuNumbers) : 0;
+      skuId = `SKU-${String(maxNum + 1).padStart(4, '0')}`;
+    }
+
     const newItem: LocalItem = {
       item_name: item.item_name || '',
       package_quantity_grams: item.package_quantity_grams || 0,
@@ -224,6 +241,7 @@ export const localApi = {
       packaging_style: item.packaging_style || 'packet',
       packets_per_bundle: item.packets_per_bundle || 0,
       bundle_weight_grams: item.bundle_weight_grams || 0,
+      sku_id: skuId,
       category_id: item.category_id || null,
       current_stock: item.current_stock || 0,
       low_stock_threshold: item.low_stock_threshold || 10,
@@ -1091,24 +1109,76 @@ export const localApi = {
     return { message: 'Backup restored successfully', restored };
   },
 
-  // ===== Excel (simplified for local) =====
-  async parseExcel(_file: File) {
-    throw new Error('Excel parsing is not available in offline mode. Please use CSV import instead.');
+  // ===== Excel (client-side parsing with xlsx) =====
+  async parseExcel(file: File): Promise<{ headers: string[]; rows: any[]; total_rows: number }> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+          const headers = jsonData.length > 0 ? Object.keys(jsonData[0] as object) : [];
+          resolve({
+            headers,
+            rows: jsonData.slice(0, 100),
+            total_rows: jsonData.length
+          });
+        } catch (err: any) {
+          reject(new Error(`Failed to parse file: ${err.message}`));
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsArrayBuffer(file);
+    });
   },
 
-  getTemplateCsvUrl() { return ''; },
-  getExportCsvUrl() { return ''; },
+  async getSourceFiles(): Promise<{ files: { name: string; size: number; modified: string }[] }> {
+    return { files: [] };
+  },
 
-  async downloadWithAuth(_url: string, _filename: string) {
-    // Export items as CSV
-    const items = await localDb.items.toArray();
-    const headers = ['item_name', 'package_quantity_grams', 'purchase_cost', 'selling_price', 'mrp', 'packaging_style', 'packets_per_bundle', 'bundle_weight_grams'];
-    const csv = [headers.join(','), ...items.map(i => headers.map(h => (i as any)[h] ?? '').join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'items_export.csv';
-    a.click();
-    URL.revokeObjectURL(a.href);
+  async parseSourceFile(_filename: string): Promise<{ headers: string[]; rows: any[]; total_rows: number }> {
+    throw new Error('Source file parsing is not available in local mode. Please upload a file directly.');
+  },
+
+  getTemplateCsvUrl() { return 'local://template'; },
+  getExportCsvUrl() { return 'local://export'; },
+
+  async downloadWithAuth(url: string, filename: string) {
+    if (url === 'local://template' || url.includes('template')) {
+      // Generate template CSV with headers and example row
+      const headers = ['id', 'sku_id', 'item_name', 'package_quantity_grams', 'purchase_cost', 'selling_price', 'mrp', 'packaging_style'];
+      const exampleRow = ['', 'SKU-0001', 'Example Item', '100', '50', '80', '100', 'packet'];
+      const csv = [headers.join(','), exampleRow.join(',')].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename || 'items_template.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    } else {
+      // Export current items as CSV
+      const items = await localDb.items.toArray();
+      const headers = ['id', 'sku_id', 'item_name', 'package_quantity_grams', 'purchase_cost', 'selling_price', 'mrp', 'packaging_style', 'packets_per_bundle', 'bundle_weight_grams'];
+      const csvRows = items.map(i => headers.map(h => {
+        const val = (i as any)[h] ?? '';
+        // Escape values containing commas
+        const str = String(val);
+        return str.includes(',') ? `"${str}"` : str;
+      }).join(','));
+      const csv = [headers.join(','), ...csvRows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename || 'items_export.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    }
   }
 };
