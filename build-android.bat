@@ -58,7 +58,8 @@ echo =========================================
 echo.
 echo Building APK...
 cd android
-call gradlew assembleDebug --no-daemon
+set GRADLE_OPTS=-Dorg.gradle.vfs.watch=false
+call gradlew assembleDebug --parallel
 if errorlevel 1 (
   echo.
   echo ERROR: APK build failed!

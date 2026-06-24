@@ -1,5 +1,6 @@
 import Dexie, { Table } from 'dexie';
 import * as XLSX from 'xlsx';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 
 // ===== Database Schema =====
 
@@ -1147,34 +1148,79 @@ export const localApi = {
   getExportCsvUrl() { return 'local://export'; },
 
   async downloadWithAuth(url: string, filename: string) {
+    let csv = '';
+
     if (url === 'local://template' || url.includes('template')) {
       // Generate template CSV with headers and example row
       const headers = ['id', 'sku_id', 'item_name', 'package_quantity_grams', 'purchase_cost', 'selling_price', 'mrp', 'packaging_style'];
       const exampleRow = ['', 'SKU-0001', 'Example Item', '100', '50', '80', '100', 'packet'];
-      const csv = [headers.join(','), exampleRow.join(',')].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename || 'items_template.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
+      csv = [headers.join(','), exampleRow.join(',')].join('\n');
     } else {
       // Export current items as CSV
       const items = await localDb.items.toArray();
       const headers = ['id', 'sku_id', 'item_name', 'package_quantity_grams', 'purchase_cost', 'selling_price', 'mrp', 'packaging_style', 'packets_per_bundle', 'bundle_weight_grams'];
       const csvRows = items.map(i => headers.map(h => {
         const val = (i as any)[h] ?? '';
-        // Escape values containing commas
         const str = String(val);
         return str.includes(',') ? `"${str}"` : str;
       }).join(','));
-      const csv = [headers.join(','), ...csvRows].join('\n');
+      csv = [headers.join(','), ...csvRows].join('\n');
+    }
+
+    const finalFilename = filename || 'download.csv';
+
+    // Use Capacitor Filesystem on mobile
+    if ((window as any).Capacitor?.isNativePlatform?.()) {
+      // Use Directory.External — always works without permissions on all Android versions
+      // Files are stored at: /storage/emulated/0/Android/data/com.jalanjyothi.crm/files/
+      try {
+        // Create Jalan Jyothi folder
+        await Filesystem.mkdir({
+          path: 'Jalan Jyothi',
+          directory: Directory.External,
+          recursive: true
+        }).catch(() => {}); // ignore if exists
+
+        // Write file
+        const result = await Filesystem.writeFile({
+          path: `Jalan Jyothi/${finalFilename}`,
+          data: csv,
+          directory: Directory.External,
+          encoding: Encoding.UTF8
+        });
+
+        // Bonus: also try to write to public Downloads (may work on some devices)
+        try {
+          const permStatus = await Filesystem.checkPermissions();
+          if (permStatus.publicStorage === 'granted') {
+            await Filesystem.mkdir({
+              path: 'Download/Jalan Jyothi',
+              directory: Directory.ExternalStorage,
+              recursive: true
+            }).catch(() => {});
+            await Filesystem.writeFile({
+              path: `Download/Jalan Jyothi/${finalFilename}`,
+              data: csv,
+              directory: Directory.ExternalStorage,
+              encoding: Encoding.UTF8
+            });
+          }
+        } catch (_e) {
+          // Public downloads not available, that's fine - External write succeeded
+        }
+
+        console.log('[Download] File saved:', result.uri);
+        return;
+      } catch (err: any) {
+        console.error('[Download] Failed:', err);
+        throw new Error(`Failed to save file: ${err.message || 'Unknown error'}`);
+      }
+    } else {
+      // Web fallback: blob download
       const blob = new Blob([csv], { type: 'text/csv' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = filename || 'items_export.csv';
+      a.download = finalFilename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

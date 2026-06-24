@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { api } from '../services/api';
+import { toast } from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
 interface BulkUpdateModalProps {
@@ -151,18 +152,24 @@ export default function BulkUpdateModal({ onClose, onUpdated }: BulkUpdateModalP
   };
 
   const handleDownloadTemplate = async () => {
+    setError('');
     try {
       await api.downloadWithAuth(api.getTemplateCsvUrl(), 'jalan_jyothi_items_template.csv');
+      toast.success('Template saved to Download/Jalan Jyothi/ folder', { duration: 4000 });
     } catch (err: any) {
-      setError(err.message);
+      setError(`Download failed: ${err.message}`);
+      toast.error('Download failed: ' + err.message);
     }
   };
 
   const handleExportCsv = async () => {
+    setError('');
     try {
       await api.downloadWithAuth(api.getExportCsvUrl(), 'jalan_jyothi_items_export.csv');
+      toast.success('Export saved to Download/Jalan Jyothi/ folder', { duration: 4000 });
     } catch (err: any) {
-      setError(err.message);
+      setError(`Export failed: ${err.message}`);
+      toast.error('Export failed: ' + err.message);
     }
   };
 

@@ -544,12 +544,41 @@ const serverApi = {
   async downloadWithAuth(url: string, filename: string): Promise<void> {
     const res = await fetch(url, { headers: { ...getAuthHeaders() } });
     if (!res.ok) throw new Error('Download failed');
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    const text = await res.text();
+
+    // Use Capacitor Filesystem on mobile
+    if ((window as any).Capacitor?.isNativePlatform?.()) {
+      const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
+      try {
+        await Filesystem.mkdir({ path: 'Jalan Jyothi', directory: Directory.Documents, recursive: true });
+      } catch (_e) { /* exists */ }
+      await Filesystem.writeFile({
+        path: `Jalan Jyothi/${filename}`,
+        data: text,
+        directory: Directory.Documents,
+        encoding: Encoding.UTF8
+      });
+      try {
+        try {
+          await Filesystem.mkdir({ path: 'Download/Jalan Jyothi', directory: Directory.ExternalStorage, recursive: true });
+        } catch (_e) { /* exists */ }
+        await Filesystem.writeFile({
+          path: `Download/Jalan Jyothi/${filename}`,
+          data: text,
+          directory: Directory.ExternalStorage,
+          encoding: Encoding.UTF8
+        });
+      } catch (_e) { /* ExternalStorage may not be available */ }
+    } else {
+      const blob = new Blob([text], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    }
   },
 };
 
