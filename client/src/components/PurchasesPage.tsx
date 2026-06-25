@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { api, Item, Purchase } from '../services/api';
 import PurchaseForm from './PurchaseForm';
+import PurchaseBulkUploadModal from './PurchaseBulkUploadModal';
 
 export default function PurchasesPage() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -70,9 +72,14 @@ export default function PurchasesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-slate-900">Purchases</h2>
-        <button onClick={() => setShowForm(true)} className="btn-primary text-sm">
-          + Record Purchase
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowBulkUpload(true)} className="btn-secondary text-sm">
+            Bulk Upload
+          </button>
+          <button onClick={() => setShowForm(true)} className="btn-primary text-sm">
+            + Record Purchase
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -192,6 +199,12 @@ export default function PurchasesPage() {
           purchase={editingPurchase}
           onSubmit={handleUpdate}
           onCancel={() => setEditingPurchase(null)}
+        />
+      )}
+      {showBulkUpload && (
+        <PurchaseBulkUploadModal
+          onClose={() => setShowBulkUpload(false)}
+          onUploaded={() => fetchPurchases()}
         />
       )}
     </div>

@@ -10,6 +10,7 @@ import BillingPage from './components/BillingPage';
 import CustomersPage from './components/CustomersPage';
 import ExpensesPage from './components/ExpensesPage';
 import SettingsPage from './components/SettingsPage';
+import ProfilePage from './components/ProfilePage';
 
 export default function App() {
   return (
@@ -50,6 +51,7 @@ function AuthGate() {
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/expenses" element={<ExpensesPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

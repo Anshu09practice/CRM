@@ -4,6 +4,95 @@ import { requireRole } from '../middleware/auth';
 
 const router = Router();
 
+// GET /api/purchases/template/csv - Download a CSV template for bulk purchase import
+router.get('/template/csv', (_req: Request, res: Response) => {
+  const header = 'item_name,quantity,purchase_cost,purchase_date,notes';
+  const example1 = 'Jeera Powder,100,8,2026-06-25,Supplier ABC';
+  const example2 = 'Haldi Powder,50,15,2026-06-25,Invoice #1234';
+  const example3 = 'Chilli Premium,200,30,2026-06-25,';
+  const csv = [header, example1, example2, example3].join('\n');
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="jalan_jyothi_purchases_template.csv"');
+  res.send(csv);
+});
+
+// GET /api/purchases/export/csv - Export existing purchases as CSV
+router.get('/export/csv', (_req: Request, res: Response) => {
+  const purchases = queryAll('SELECT id, item_name, quantity, purchase_cost, purchase_date, notes FROM purchases ORDER BY purchase_date DESC, created_at DESC');
+  const header = 'id,item_name,quantity,purchase_cost,purchase_date,notes';
+  const rows = purchases.map((p: any) =>
+    `${p.id},"${(p.item_name || '').replace(/"/g, '""')}",${p.quantity},${p.purchase_cost},${p.purchase_date},"${(p.notes || '').replace(/"/g, '""')}"`
+  );
+  const csv = [header, ...rows].join('\n');
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="jalan_jyothi_purchases_export.csv"');
+  res.send(csv);
+});
+
+// POST /api/purchases/bulk-import - Bulk import purchases from CSV data
+router.post('/bulk-import', (req: Request, res: Response) => {
+  const { purchases } = req.body;
+
+  if (!Array.isArray(purchases) || purchases.length === 0) {
+    return res.status(400).json({ error: 'Purchases array is required and must not be empty' });
+  }
+
+  let created = 0;
+  const errors: string[] = [];
+  const today = new Date().toISOString().split('T')[0];
+
+  runTransaction(() => {
+    for (let i = 0; i < purchases.length; i++) {
+      const purchase = purchases[i];
+      try {
+        const itemName = String(purchase.item_name || '').trim();
+        if (!itemName) {
+          errors.push(`Row ${i + 1}: Missing item_name`);
+          continue;
+        }
+
+        const quantity = parseInt(purchase.quantity);
+        if (!quantity || quantity <= 0) {
+          errors.push(`Row ${i + 1} (${itemName}): Quantity must be greater than 0`);
+          continue;
+        }
+
+        // Look up item by name (case-insensitive)
+        const item = queryOne('SELECT * FROM items WHERE LOWER(item_name) = LOWER(?)', [itemName]);
+        if (!item) {
+          errors.push(`Row ${i + 1} (${itemName}): Item not found in inventory`);
+          continue;
+        }
+
+        const cost = purchase.purchase_cost ? parseFloat(purchase.purchase_cost) : item.purchase_cost;
+        const total = cost * quantity;
+        const date = purchase.purchase_date ? String(purchase.purchase_date).trim() : today;
+        const notes = purchase.notes ? String(purchase.notes).trim() : '';
+
+        runQuery(
+          `INSERT INTO purchases (item_id, item_name, quantity, package_quantity_grams, purchase_cost, total_cost, packaging_style, purchase_date, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [item.id, item.item_name, quantity, item.package_quantity_grams, cost, total, item.packaging_style, date, notes]
+        );
+
+        // Auto-update stock
+        runQuery('UPDATE items SET current_stock = current_stock + ? WHERE id = ?', [quantity, item.id]);
+        created++;
+      } catch (err: any) {
+        errors.push(`Row ${i + 1} (${purchase.item_name}): ${err.message}`);
+      }
+    }
+  });
+
+  res.json({
+    message: `Processed ${created} purchases successfully`,
+    created,
+    errors
+  });
+});
+
 // GET /api/purchases - List purchases with optional filters
 router.get('/', (req: Request, res: Response) => {
   const { item_id, from_date, to_date, search } = req.query;

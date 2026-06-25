@@ -5,34 +5,163 @@ interface BillPrintViewProps {
   onClose: () => void;
 }
 
+function generateBillHtml(bill: Bill): string {
+  const items = bill.items || [];
+  const itemRows = items.map((item, idx) => `
+    <tr style="border-bottom:1px solid #e2e8f0;">
+      <td style="padding:6px 4px;">${idx + 1}</td>
+      <td style="padding:6px 4px;font-weight:500;">${item.item_name}</td>
+      <td style="padding:6px 4px;text-align:center;">${item.package_quantity_grams}g</td>
+      <td style="padding:6px 4px;text-align:center;">${item.quantity}</td>
+      <td style="padding:6px 4px;text-align:right;">₹${item.selling_price.toFixed(2)}</td>
+      <td style="padding:6px 4px;text-align:right;">₹${item.line_total.toFixed(2)}</td>
+    </tr>
+  `).join('');
+
+  const discountRow = bill.discount_percent > 0
+    ? `<div style="display:flex;justify-content:space-between;color:#c2410c;"><span>Discount (${bill.discount_percent}%)</span><span>-₹${bill.discount_amount.toFixed(2)}</span></div>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bill ${bill.bill_number}</title>
+  <style>
+    body { font-family: sans-serif; padding: 16px; margin: 0; font-size: 14px; color: #1e293b; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    th { text-align: left; padding: 8px 4px; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  <div style="text-align:center;border-bottom:2px solid #1e293b;padding-bottom:12px;margin-bottom:12px;">
+    <h1 style="margin:0;font-size:20px;letter-spacing:1px;">JALAN JYOTHI</h1>
+    <p style="margin:4px 0 0;font-size:12px;color:#64748b;">Quality Spices & Masala Products</p>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:12px;">
+    <div>
+      <p style="margin:2px 0;"><strong>Bill No:</strong> ${bill.bill_number}</p>
+      <p style="margin:2px 0;"><strong>Date:</strong> ${bill.bill_date}</p>
+    </div>
+    <div style="text-align:right;">
+      <p style="margin:2px 0;"><strong>Customer:</strong> ${bill.customer_name}</p>
+      ${bill.customer_phone ? `<p style="margin:2px 0;"><strong>Phone:</strong> ${bill.customer_phone}</p>` : ''}
+      ${bill.customer_address ? `<p style="margin:2px 0;"><strong>Address:</strong> ${bill.customer_address}</p>` : ''}
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr style="border-top:2px solid #1e293b;border-bottom:2px solid #1e293b;">
+        <th>#</th><th>Item</th><th style="text-align:center;">Pkg</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Price</th><th style="text-align:right;">Amount</th>
+      </tr>
+    </thead>
+    <tbody>${itemRows}</tbody>
+  </table>
+  <div style="border-top:2px solid #1e293b;padding-top:12px;">
+    <div style="margin-left:auto;width:240px;font-size:13px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>Subtotal</span><span>₹${bill.subtotal.toFixed(2)}</span></div>
+      ${discountRow}
+      <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:bold;border-top:1px solid #cbd5e1;padding-top:6px;margin-top:6px;"><span>TOTAL</span><span>₹${bill.total.toFixed(2)}</span></div>
+    </div>
+  </div>
+  ${bill.notes ? `<p style="margin-top:16px;font-size:11px;color:#64748b;font-style:italic;">Note: ${bill.notes}</p>` : ''}
+  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #cbd5e1;text-align:center;font-size:11px;color:#94a3b8;">
+    <p style="margin:0;">Thank you for your purchase!</p>
+    <p style="margin:4px 0 0;">Jalan Jyothi — Quality you can trust</p>
+  </div>
+</body>
+</html>`;
+}
+
 export default function BillPrintView({ bill, onClose }: BillPrintViewProps) {
   const items = bill.items || [];
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    const html = generateBillHtml(bill);
+
+    // On native mobile (Capacitor), open HTML in a new window which triggers Android print
+    if ((window as any).Capacitor?.isNativePlatform?.()) {
+      try {
+        // Create a blob URL and open it — Android WebView supports window.print()
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          // Small delay to ensure content is rendered before print dialog
+          setTimeout(() => {
+            printWindow.print();
+          }, 500);
+        } else {
+          // Fallback: use an iframe for printing
+          const iframe = document.createElement('iframe');
+          iframe.style.position = 'fixed';
+          iframe.style.top = '-10000px';
+          iframe.style.left = '-10000px';
+          iframe.style.width = '210mm';
+          iframe.style.height = '297mm';
+          document.body.appendChild(iframe);
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (iframeDoc) {
+            iframeDoc.open();
+            iframeDoc.write(html);
+            iframeDoc.close();
+            setTimeout(() => {
+              iframe.contentWindow?.print();
+              setTimeout(() => document.body.removeChild(iframe), 1000);
+            }, 500);
+          }
+        }
+      } catch (err) {
+        // Ultimate fallback: direct window.print() on current page
+        window.print();
+      }
+    } else {
+      // Desktop: use iframe approach for clean print without UI controls
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.top = '-10000px';
+      iframe.style.left = '-10000px';
+      iframe.style.width = '210mm';
+      iframe.style.height = '297mm';
+      document.body.appendChild(iframe);
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (iframeDoc) {
+        iframeDoc.open();
+        iframeDoc.write(html);
+        iframeDoc.close();
+        setTimeout(() => {
+          iframe.contentWindow?.print();
+          setTimeout(() => document.body.removeChild(iframe), 1000);
+        }, 300);
+      }
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
-      {/* Print Controls (hidden in print) */}
-      <div className="print:hidden fixed top-4 right-4 flex gap-2 z-[60]">
+    <div className="fixed inset-0 bg-black/50 flex flex-col z-50">
+      {/* Fixed Action Bar at top - always visible */}
+      <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shrink-0 print:hidden">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 text-sm"
+        >
+          ← Back
+        </button>
+        <h3 className="font-semibold text-slate-900 text-sm">Bill #{bill.bill_number}</h3>
         <button
           onClick={handlePrint}
-          className="px-4 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 shadow-lg"
+          className="px-4 py-2 bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 text-sm shadow-md"
         >
           🖨️ Print
         </button>
-        <button
-          onClick={onClose}
-          className="px-4 py-2 bg-white text-slate-700 rounded-lg font-medium hover:bg-slate-100 shadow-lg"
-        >
-          ✕ Close
-        </button>
       </div>
 
-      {/* Bill Content */}
-      <div className="bg-white w-full max-w-[210mm] my-4 rounded-lg shadow-2xl print:shadow-none print:rounded-none print:my-0 print:max-w-full">
-        <div className="p-8 print:p-6" id="bill-print-area">
+      {/* Scrollable Bill Content */}
+      <div className="flex-1 overflow-y-auto p-4 print:p-0 print:overflow-visible">
+        <div className="bg-white w-full max-w-[210mm] mx-auto rounded-lg shadow-2xl print:shadow-none print:rounded-none print:max-w-full">
+          <div className="p-6 print:p-6" id="bill-print-area">
           {/* Header */}
           <div className="text-center border-b-2 border-slate-800 pb-4 mb-4">
             <h1 className="text-2xl font-bold text-slate-900 tracking-wide">JALAN JYOTHI</h1>
@@ -112,6 +241,7 @@ export default function BillPrintView({ bill, onClose }: BillPrintViewProps) {
             <p>Thank you for your purchase!</p>
             <p className="mt-1">Jalan Jyothi — Quality you can trust</p>
           </div>
+        </div>
         </div>
       </div>
     </div>

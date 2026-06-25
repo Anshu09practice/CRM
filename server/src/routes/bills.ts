@@ -98,6 +98,38 @@ router.post('/', (req: Request, res: Response) => {
     payment_method, amount_paid
   } = req.body;
 
+  // Auto-link or create customer
+  let resolvedCustomerId = customer_id || null;
+  if (!resolvedCustomerId && customer_name && customer_name.trim()) {
+    // Try to find existing customer by phone (phone is unique key)
+    if (customer_phone && customer_phone.trim()) {
+      const existingByPhone = queryOne('SELECT * FROM customers WHERE phone = ?', [customer_phone.trim()]);
+      if (existingByPhone) {
+        resolvedCustomerId = existingByPhone.id;
+        // Update name/address if changed
+        if (existingByPhone.name !== customer_name.trim() || (customer_address && existingByPhone.address !== customer_address)) {
+          runQuery(
+            'UPDATE customers SET name = ?, address = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [customer_name.trim(), customer_address || existingByPhone.address, existingByPhone.id]
+          );
+        }
+      } else {
+        // Create new customer
+        const newCust = runQuery(
+          'INSERT INTO customers (name, phone, address, notes) VALUES (?, ?, ?, ?)',
+          [customer_name.trim(), customer_phone.trim(), customer_address || '', '']
+        );
+        resolvedCustomerId = newCust.lastInsertRowid;
+      }
+    } else {
+      // No phone - try matching by name only
+      const existingByName = queryOne('SELECT * FROM customers WHERE LOWER(name) = LOWER(?)', [customer_name.trim()]);
+      if (existingByName) {
+        resolvedCustomerId = existingByName.id;
+      }
+    }
+  }
+
   if (!customer_name || !customer_name.trim()) {
     return res.status(400).json({ error: 'Customer name is required' });
   }
@@ -174,7 +206,7 @@ router.post('/', (req: Request, res: Response) => {
         subtotal, discount_percent, discount_amount, tax_percent, cgst_amount, sgst_amount, tax_total,
         total, payment_status, amount_paid, bill_date, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [billNumber, customer_name.trim(), customer_phone || '', customer_address || '', customer_id || null,
+      [billNumber, customer_name.trim(), customer_phone || '', customer_address || '', resolvedCustomerId || null,
         subtotal, discount, discountAmount, tax, cgst, sgst, taxTotal,
         total, paymentStatus, paid, date, notes || '']
     );
@@ -202,8 +234,8 @@ router.post('/', (req: Request, res: Response) => {
     }
 
     // Update customer credit balance if credit payment
-    if (customer_id && payment_method === 'credit') {
-      runQuery('UPDATE customers SET credit_balance = credit_balance + ? WHERE id = ?', [total - paid, customer_id]);
+    if (resolvedCustomerId && payment_method === 'credit') {
+      runQuery('UPDATE customers SET credit_balance = credit_balance + ? WHERE id = ?', [total - paid, resolvedCustomerId]);
     }
 
     newBill = queryOne('SELECT * FROM bills WHERE id = ?', [billId]);

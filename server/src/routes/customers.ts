@@ -48,9 +48,25 @@ router.post('/', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Customer name is required' });
   }
 
+  // Enforce uniqueness: no two customers with same name AND phone
+  if (phone && phone.trim()) {
+    const existing = queryOne(
+      'SELECT * FROM customers WHERE LOWER(name) = LOWER(?) AND phone = ?',
+      [name.trim(), phone.trim()]
+    );
+    if (existing) {
+      return res.status(409).json({ error: 'A customer with this name and phone number already exists' });
+    }
+    // Also prevent duplicate phone numbers entirely
+    const phoneExists = queryOne('SELECT * FROM customers WHERE phone = ?', [phone.trim()]);
+    if (phoneExists) {
+      return res.status(409).json({ error: `Phone number already registered to "${phoneExists.name}". Each customer must have a unique phone number.` });
+    }
+  }
+
   const result = runQuery(
     'INSERT INTO customers (name, phone, address, notes) VALUES (?, ?, ?, ?)',
-    [name.trim(), phone || '', address || '', notes || '']
+    [name.trim(), (phone || '').trim(), address || '', notes || '']
   );
 
   const customer = queryOne('SELECT * FROM customers WHERE id = ?', [result.lastInsertRowid]);
@@ -69,9 +85,17 @@ router.put('/:id', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Customer name is required' });
   }
 
+  // Enforce phone uniqueness (excluding current customer)
+  if (phone && phone.trim()) {
+    const phoneConflict = queryOne('SELECT * FROM customers WHERE phone = ? AND id != ?', [phone.trim(), req.params.id]);
+    if (phoneConflict) {
+      return res.status(409).json({ error: `Phone number already registered to "${phoneConflict.name}". Each customer must have a unique phone number.` });
+    }
+  }
+
   runQuery(
     `UPDATE customers SET name = ?, phone = ?, address = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-    [name.trim(), phone || '', address || '', notes || '', req.params.id]
+    [name.trim(), (phone || '').trim(), address || '', notes || '', req.params.id]
   );
 
   const updated = queryOne('SELECT * FROM customers WHERE id = ?', [req.params.id]);

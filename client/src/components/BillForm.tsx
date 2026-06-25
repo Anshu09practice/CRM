@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { StockItem, Bill } from '../services/api';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { StockItem, Bill, Customer, api } from '../services/api';
 
 interface BillFormProps {
   stock: StockItem[];
@@ -39,6 +39,33 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
   const [submitting, setSubmitting] = useState(false);
   const [showSendOption, setShowSendOption] = useState(false);
   const [createdBill, setCreatedBill] = useState<any>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(bill?.customer_id || null);
+
+  // Load customers list
+  useEffect(() => {
+    api.getCustomers().then(setCustomers).catch(() => {});
+  }, []);
+
+  // Filter customers by search
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch) return [];
+    const q = customerSearch.toLowerCase();
+    return customers.filter(c =>
+      c.name.toLowerCase().includes(q) || c.phone.includes(q)
+    ).slice(0, 8);
+  }, [customers, customerSearch]);
+
+  const selectCustomer = useCallback((customer: Customer) => {
+    setCustomerName(customer.name);
+    setCustomerPhone(customer.phone);
+    setCustomerAddress(customer.address || '');
+    setSelectedCustomerId(customer.id);
+    setCustomerSearch('');
+    setShowCustomerDropdown(false);
+  }, []);
 
   // Filter stock by search, excluding already-added items
   const filteredStock = useMemo(() => {
@@ -84,6 +111,7 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
         customer_name: customerName,
         customer_phone: customerPhone,
         customer_address: customerAddress,
+        customer_id: selectedCustomerId || undefined,
         items: lineItems.map(i => ({ item_id: i.item_id, quantity: i.quantity, selling_price: i.selling_price })),
         discount_percent: discountPct,
         notes,
@@ -142,11 +170,51 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
             <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
               👤 Customer Details
             </h4>
+
+            {/* Customer Search / Select */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search existing customers (name or phone)..."
+                value={customerSearch}
+                onChange={e => { setCustomerSearch(e.target.value); setShowCustomerDropdown(true); }}
+                onFocus={() => setShowCustomerDropdown(true)}
+                className="input-field text-sm"
+              />
+              {showCustomerDropdown && filteredCustomers.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-slate-200 max-h-48 overflow-y-auto z-20">
+                  {filteredCustomers.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => selectCustomer(c)}
+                      className="w-full text-left px-3 py-2 hover:bg-brand-50 flex items-center justify-between text-sm border-b border-slate-100 last:border-0"
+                    >
+                      <span className="font-medium text-slate-900">{c.name}</span>
+                      <span className="text-xs text-slate-500">{c.phone || 'No phone'}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showCustomerDropdown && customerSearch && filteredCustomers.length === 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-slate-200 p-2 text-center text-xs text-slate-500 z-20">
+                  No matching customer — fill details below to create new
+                </div>
+              )}
+            </div>
+
+            {selectedCustomerId && (
+              <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 px-2 py-1 rounded">
+                <span>✓ Linked to existing customer</span>
+                <button type="button" onClick={() => { setSelectedCustomerId(null); setCustomerName(''); setCustomerPhone(''); setCustomerAddress(''); }} className="ml-auto text-red-500 hover:text-red-700 font-medium">Clear</button>
+              </div>
+            )}
+
             <input
               type="text"
               placeholder="Customer Name *"
               value={customerName}
-              onChange={e => setCustomerName(e.target.value)}
+              onChange={e => { setCustomerName(e.target.value); if (selectedCustomerId) setSelectedCustomerId(null); }}
               className="input-field"
               required
             />
@@ -155,7 +223,7 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
                 type="tel"
                 placeholder="Phone Number"
                 value={customerPhone}
-                onChange={e => setCustomerPhone(e.target.value)}
+                onChange={e => { setCustomerPhone(e.target.value); if (selectedCustomerId) setSelectedCustomerId(null); }}
                 className="input-field"
               />
               <input
@@ -169,7 +237,7 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
               type="text"
               placeholder="Address"
               value={customerAddress}
-              onChange={e => setCustomerAddress(e.target.value)}
+              onChange={e => { setCustomerAddress(e.target.value); if (selectedCustomerId) setSelectedCustomerId(null); }}
               className="input-field"
             />
           </div>

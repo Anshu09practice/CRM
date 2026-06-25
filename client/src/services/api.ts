@@ -336,6 +336,17 @@ const serverApi = {
     return handleResponse(res);
   },
 
+  async bulkImportPurchases(purchases: { item_name: string; quantity: number; purchase_cost?: number; purchase_date?: string; notes?: string }[]): Promise<{ created: number; errors: string[] }> {
+    const res = await fetch(`${get_API_BASE()}/purchases/bulk-import`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ purchases })
+    });
+    return handleResponse(res);
+  },
+
+  getPurchaseTemplateCsvUrl(): string { return `${get_API_BASE()}/purchases/template/csv`; },
+  getPurchaseExportCsvUrl(): string { return `${get_API_BASE()}/purchases/export/csv`; },
+
   // ===== Bills =====
   async getBills(params?: { from_date?: string; to_date?: string; search?: string; payment_status?: string }): Promise<BillsResponse> {
     const searchParams = new URLSearchParams();
