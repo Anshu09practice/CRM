@@ -54,10 +54,10 @@ router.get('/low-stock', (_req: Request, res: Response) => {
 
 // GET /api/items/template/csv - Download a CSV template for bulk import/update
 router.get('/template/csv', (_req: Request, res: Response) => {
-  const header = 'id,sku_id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style';
-  const example1 = ',SKU-0001,Jeera Powder,50,8,10,12,packet';
-  const example2 = ',SKU-0002,Haldi Powder,100,15,20,25,packet';
-  const example3 = ',SKU-0003,Chilli Premium,100,30,45,50,standing_package';
+  const header = 'id,sku_id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style,category';
+  const example1 = ',SKU-0001,Jeera Powder,50,8,10,12,packet,Spices';
+  const example2 = ',SKU-0002,Haldi Powder,100,15,20,25,packet,Spices';
+  const example3 = ',SKU-0003,Chilli Premium,100,30,45,50,standing_package,Premium';
   const csv = [header, example1, example2, example3].join('\n');
 
   res.setHeader('Content-Type', 'text/csv');
@@ -67,10 +67,11 @@ router.get('/template/csv', (_req: Request, res: Response) => {
 
 // GET /api/items/export/csv - Export all items as CSV
 router.get('/export/csv', (_req: Request, res: Response) => {
-  const items = queryAll('SELECT id, sku_id, item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style FROM items ORDER BY item_name');
-  const header = 'id,sku_id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style';
+  const items = queryAll(`SELECT i.id, i.sku_id, i.item_name, i.package_quantity_grams, i.purchase_cost, i.selling_price, i.mrp, i.packaging_style, c.name as category_name
+    FROM items i LEFT JOIN categories c ON i.category_id = c.id ORDER BY i.item_name`);
+  const header = 'id,sku_id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style,category';
   const rows = items.map((item: any) =>
-    `${item.id},${item.sku_id || ''},"${(item.item_name || '').replace(/"/g, '""')}",${item.package_quantity_grams},${item.purchase_cost},${item.selling_price},${item.mrp},${item.packaging_style}`
+    `${item.id},${item.sku_id || ''},"${(item.item_name || '').replace(/"/g, '""')}",${item.package_quantity_grams},${item.purchase_cost},${item.selling_price},${item.mrp},${item.packaging_style},"${(item.category_name || '').replace(/"/g, '""')}"`
   );
   const csv = [header, ...rows].join('\n');
 
@@ -110,6 +111,22 @@ router.post('/bulk-update', (req: Request, res: Response) => {
       const skuId = item.sku_id ? String(item.sku_id).trim() : null;
       const { packets_per_bundle, bundle_weight_grams } = calculateSizing(packaging, qty);
 
+      // Resolve category by name if provided
+      let categoryId: number | null = null;
+      if (item.category && String(item.category).trim()) {
+        const catName = String(item.category).trim();
+        const existingCat = queryOne('SELECT id FROM categories WHERE LOWER(name) = LOWER(?)', [catName]);
+        if (existingCat) {
+          categoryId = existingCat.id;
+        } else {
+          // Auto-create category
+          const catResult = runQuery('INSERT INTO categories (name, description) VALUES (?, ?)', [catName, '']);
+          categoryId = catResult.lastInsertRowid as number;
+        }
+      } else if (item.category_id) {
+        categoryId = parseInt(item.category_id) || null;
+      }
+
       // Try to find existing item by id or name
       let existing: any = null;
       if (item.id && String(item.id).trim()) {
@@ -126,17 +143,17 @@ router.post('/bulk-update', (req: Request, res: Response) => {
             item_name = ?, package_quantity_grams = ?, purchase_cost = ?,
             selling_price = ?, mrp = ?, packaging_style = ?,
             packets_per_bundle = ?, bundle_weight_grams = ?, sku_id = ?,
-            updated_at = CURRENT_TIMESTAMP
+            category_id = ?, updated_at = CURRENT_TIMESTAMP
           WHERE id = ?`,
-          [name, qty, purchase, selling, mrp, packaging, packets_per_bundle, bundle_weight_grams, skuId || existing.sku_id, existing.id]
+          [name, qty, purchase, selling, mrp, packaging, packets_per_bundle, bundle_weight_grams, skuId || existing.sku_id, categoryId ?? existing.category_id, existing.id]
         );
         updated++;
       } else {
         // Insert new item
         runQuery(
-          `INSERT INTO items (item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, packets_per_bundle, bundle_weight_grams, sku_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [name, qty, purchase, selling, mrp, packaging, packets_per_bundle, bundle_weight_grams, skuId]
+          `INSERT INTO items (item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, packets_per_bundle, bundle_weight_grams, sku_id, category_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [name, qty, purchase, selling, mrp, packaging, packets_per_bundle, bundle_weight_grams, skuId, categoryId]
         );
         created++;
       }

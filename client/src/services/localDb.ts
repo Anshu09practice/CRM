@@ -294,17 +294,79 @@ export const localApi = {
   async bulkUpdate(items: Partial<LocalItem>[]) {
     let updated = 0, created = 0;
     const errors: string[] = [];
+    const allItems = await localDb.items.toArray();
+
     for (const item of items) {
       try {
-        if (item.id) {
-          await localDb.items.update(item.id, { ...item, updated_at: now() });
+        const name = String(item.item_name || '').trim();
+        if (!name) {
+          errors.push('Skipped row with empty item name');
+          continue;
+        }
+
+        // Parse numeric values (handles string values from Excel/CSV parsing)
+        const packaging = String(item.packaging_style || 'packet').toLowerCase().includes('stand') ? 'standing_package' as const : 'packet' as const;
+        const qty = parseInt(String(item.package_quantity_grams)) || 0;
+        const purchase = parseFloat(String(item.purchase_cost)) || 0;
+        const selling = parseFloat(String(item.selling_price)) || 0;
+        const mrp = parseFloat(String(item.mrp)) || 0;
+        const skuId = item.sku_id ? String(item.sku_id).trim() : null;
+        const categoryId = item.category_id ? Number(item.category_id) : null;
+
+        // Match by id first, then by name (case-insensitive)
+        let existing: LocalItem | undefined;
+        if (item.id && String(item.id).trim()) {
+          existing = allItems.find(i => i.id === parseInt(String(item.id)));
+        }
+        if (!existing) {
+          existing = allItems.find(i => i.item_name.toLowerCase() === name.toLowerCase());
+        }
+
+        if (existing) {
+          await localDb.items.update(existing.id!, {
+            item_name: name,
+            package_quantity_grams: qty,
+            purchase_cost: purchase,
+            selling_price: selling,
+            mrp: mrp,
+            packaging_style: packaging,
+            sku_id: skuId || existing.sku_id,
+            category_id: categoryId ?? existing.category_id,
+            updated_at: now()
+          });
           updated++;
         } else {
-          await this.createItem(item);
+          // Generate SKU for new items
+          const skuNumbers = allItems.map(i => i.sku_id).filter(Boolean).map(s => {
+            const match = s!.match(/SKU-(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+          });
+          const maxNum = skuNumbers.length > 0 ? Math.max(...skuNumbers) : 0;
+          const newSkuId = skuId || `SKU-${String(maxNum + created + 1).padStart(4, '0')}`;
+
+          const newItem: LocalItem = {
+            item_name: name,
+            package_quantity_grams: qty,
+            purchase_cost: purchase,
+            selling_price: selling,
+            mrp: mrp,
+            packaging_style: packaging,
+            packets_per_bundle: 0,
+            bundle_weight_grams: 0,
+            sku_id: newSkuId,
+            category_id: categoryId,
+            current_stock: 0,
+            low_stock_threshold: 10,
+            default_tax_percent: 0,
+            created_at: now(),
+            updated_at: now()
+          };
+          const newId = await localDb.items.add(newItem);
+          allItems.push({ ...newItem, id: newId as number });
           created++;
         }
       } catch (e: any) {
-        errors.push(e.message);
+        errors.push(`Failed "${item.item_name}": ${e.message}`);
       }
     }
     return { updated, created, errors };

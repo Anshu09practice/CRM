@@ -17,6 +17,7 @@ interface ParsedRow {
   selling_price: string;
   mrp: string;
   packaging_style: string;
+  category?: string;
 }
 
 function parseCsv(text: string): ParsedRow[] {
@@ -244,12 +245,13 @@ export default function BulkUpdateModal({ onClose, onUpdated }: BulkUpdateModalP
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                 <p className="text-xs font-medium text-slate-700 mb-1">Expected CSV/Excel format:</p>
                 <code className="text-[11px] text-slate-600 block overflow-x-auto">
-                  id,sku_id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style
+                  id,sku_id,item_name,package_quantity_grams,purchase_cost,selling_price,mrp,packaging_style,category
                 </code>
                 <p className="text-[11px] text-slate-500 mt-1">
                   • <strong>id</strong>: Leave blank for new items, or use existing id to update<br />
                   • <strong>sku_id</strong>: Unique product identifier (e.g., SKU-0001)<br />
-                  • <strong>packaging_style</strong>: "packet" or "standing_package"
+                  • <strong>packaging_style</strong>: "packet" or "standing_package"<br />
+                  • <strong>category</strong>: Category name (auto-created if it doesn't exist)
                 </p>
               </div>
             </div>
@@ -272,6 +274,7 @@ export default function BulkUpdateModal({ onClose, onUpdated }: BulkUpdateModalP
                       <th className="px-2 py-1.5 text-left">Selling</th>
                       <th className="px-2 py-1.5 text-left">MRP</th>
                       <th className="px-2 py-1.5 text-left">Style</th>
+                      <th className="px-2 py-1.5 text-left">Category</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -284,6 +287,7 @@ export default function BulkUpdateModal({ onClose, onUpdated }: BulkUpdateModalP
                         <td className="px-2 py-1">₹{row.selling_price}</td>
                         <td className="px-2 py-1">₹{row.mrp}</td>
                         <td className="px-2 py-1">{row.packaging_style}</td>
+                        <td className="px-2 py-1">{row.category || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
