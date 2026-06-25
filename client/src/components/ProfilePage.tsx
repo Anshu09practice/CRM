@@ -12,6 +12,9 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changing, setChanging] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
+  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem('jj_server_url') || '');
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,6 +147,32 @@ export default function ProfilePage() {
     }
   };
 
+  const handleSaveServerUrl = async () => {
+    const url = serverUrl.trim().replace(/\/+$/, ''); // Remove trailing slashes
+    if (!url) {
+      // Clear server URL - switch to offline mode
+      localStorage.removeItem('jj_server_url');
+      localStorage.setItem('jj_offline_mode', 'true');
+      toast.success('Switched to offline mode. Restart the app to apply.');
+      return;
+    }
+
+    setTestingConnection(true);
+    try {
+      const res = await fetch(`${url}/api/auth/status`, { method: 'GET' });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      // Connection successful
+      localStorage.setItem('jj_server_url', url);
+      localStorage.removeItem('jj_offline_mode');
+      toast.success('Connected to server! Restart the app to sync data.');
+      setShowServerConfig(false);
+    } catch (err: any) {
+      toast.error(`Cannot connect: ${err.message}. Check the URL and ensure server is running.`);
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
   const handleLogout = () => {
     if (confirm('Are you sure you want to log out?')) {
       logout();
@@ -254,6 +283,71 @@ export default function ProfilePage() {
               </button>
             </div>
           </form>
+        )}
+      </div>
+
+      {/* Server Connection */}
+      <div className="card mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-semibold text-slate-700">Server Connection</h4>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+            localStorage.getItem('jj_server_url') ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+          }`}>
+            {localStorage.getItem('jj_server_url') ? '🟢 Online' : '📴 Offline'}
+          </span>
+        </div>
+
+        {!showServerConfig ? (
+          <div>
+            {localStorage.getItem('jj_server_url') && (
+              <p className="text-xs text-slate-500 mb-2 break-all">
+                Connected to: <span className="font-mono">{localStorage.getItem('jj_server_url')}</span>
+              </p>
+            )}
+            <button
+              onClick={() => setShowServerConfig(true)}
+              className="w-full text-left flex items-center justify-between py-3 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-lg">🌐</span>
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Configure Server</p>
+                  <p className="text-xs text-slate-500">Connect to central server for shared data</p>
+                </div>
+              </div>
+              <span className="text-slate-400">›</span>
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+              <p className="text-[11px] text-blue-700">
+                Enter your server URL to sync data across all devices. Leave empty for offline mode.
+              </p>
+            </div>
+            <input
+              type="url"
+              placeholder="https://your-server.com or https://192.168.1.5:3001"
+              value={serverUrl}
+              onChange={e => setServerUrl(e.target.value)}
+              className="input-field text-sm font-mono"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveServerUrl}
+                disabled={testingConnection}
+                className="btn-primary text-sm flex-1"
+              >
+                {testingConnection ? 'Testing...' : serverUrl.trim() ? 'Test & Connect' : 'Switch to Offline'}
+              </button>
+              <button
+                onClick={() => { setShowServerConfig(false); setServerUrl(localStorage.getItem('jj_server_url') || ''); }}
+                className="btn-secondary text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

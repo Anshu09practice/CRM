@@ -73,9 +73,28 @@ function start() {
   const keyPath = path.join(certDir, 'key.pem');
   const certPath = path.join(certDir, 'cert.pem');
 
+  const localIP = getLocalIP();
+
+  // Support HTTP mode for cloud deployment (behind reverse proxy)
+  if (process.env.HTTP_MODE === 'true' || (!fs.existsSync(keyPath) && process.env.NO_SSL === 'true')) {
+    app.listen(Number(PORT), '0.0.0.0', () => {
+      console.log('\n=========================================');
+      console.log('   Jalan Jyothi CRM - Server Ready (HTTP)');
+      console.log('=========================================');
+      console.log(`   Local:   http://localhost:${PORT}`);
+      console.log(`   Network: http://${localIP}:${PORT}`);
+      console.log('=========================================');
+      console.log('   ⚠️  Running in HTTP mode (use reverse proxy for HTTPS in production)');
+      console.log('=========================================\n');
+      scheduleDailyBackup();
+    });
+    return;
+  }
+
   if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
     console.error('\n✗ SSL certificates not found!');
     console.error('  Run: npm run generate-cert');
+    console.error('  Or set HTTP_MODE=true for HTTP (cloud deployment behind proxy)');
     process.exit(1);
   }
 
@@ -85,7 +104,6 @@ function start() {
   };
 
   const server = https.createServer(options, app).listen(Number(PORT), '0.0.0.0', () => {
-    const localIP = getLocalIP();
     console.log('\n=========================================');
     console.log('   Jalan Jyothi CRM - Server Ready');
     console.log('=========================================');

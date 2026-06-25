@@ -81,12 +81,12 @@ export default function InventoryPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="input flex-1"
         />
-        <select value={filterStyle} onChange={(e) => setFilterStyle(e.target.value)} className="input w-full sm:w-40">
+        <select value={filterStyle} onChange={(e) => setFilterStyle(e.target.value)} className="input w-full sm:w-40" title="Filter by packaging type" aria-label="Filter by packaging type">
           <option value="">All Types</option>
           <option value="packet">Packet</option>
           <option value="standing_package">Standing Package</option>
         </select>
-        <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="input w-full sm:w-40">
+        <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="input w-full sm:w-40" title="Filter by category" aria-label="Filter by category">
           <option value="">All Categories</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>

@@ -102,16 +102,16 @@ export default function BulkUpdateModal({ onClose, onUpdated }: BulkUpdateModalP
             headers[colNumber - 1] = String(cell.value ?? '');
           });
 
-          // Extract data rows
+          // Extract data rows using eachRow to handle files with incorrect rowCount
           const jsonData: any[] = [];
-          for (let i = 2; i <= worksheet.rowCount; i++) {
-            const row = worksheet.getRow(i);
+          worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+            if (rowNumber === 1) return; // Skip header row
             const rowData: any = {};
             for (let j = 0; j < headers.length; j++) {
               rowData[headers[j]] = row.getCell(j + 1).value ?? '';
             }
             jsonData.push(rowData);
-          }
+          });
 
           if (jsonData.length === 0) {
             setError('No valid rows found in the Excel file.');
@@ -237,6 +237,8 @@ export default function BulkUpdateModal({ onClose, onUpdated }: BulkUpdateModalP
                   type="file"
                   accept=".csv,.xlsx,.xls"
                   onChange={handleFile}
+                  title="Upload CSV or Excel File"
+                  aria-label="Upload CSV or Excel File"
                   className="input-field"
                 />
               </div>

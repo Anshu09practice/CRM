@@ -20,8 +20,9 @@ const config: CapacitorConfig = {
     }
   },
   server: {
-    // No server needed - everything runs locally
-    androidScheme: 'https'
+    // Allow connections to remote servers
+    androidScheme: 'https',
+    cleartext: true
   }
 };
 

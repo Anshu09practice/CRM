@@ -1,20 +1,20 @@
 -- Merging decision tree log ---
 provider#androidx.core.content.FileProvider
-INJECTED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:28:9-36:20
+INJECTED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:29:9-37:20
 	android:grantUriPermissions
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:32:13-47
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:33:13-47
 	android:authorities
 		INJECTED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:30:13-64
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:31:13-64
 	android:exported
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:31:13-37
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:32:13-37
 	android:name
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:29:13-62
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:30:13-62
 manifest
-ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:2:1-47:12
-INJECTED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:2:1-47:12
-INJECTED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:2:1-47:12
-INJECTED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:2:1-47:12
+ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:2:1-48:12
+INJECTED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:2:1-48:12
+INJECTED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:2:1-48:12
+INJECTED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:2:1-48:12
 MERGED from [:capacitor-app] C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\node_modules\@capacitor\app\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
 MERGED from [:capacitor-filesystem] C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\node_modules\@capacitor\filesystem\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
 MERGED from [:capacitor-preferences] C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\node_modules\@capacitor\preferences\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
@@ -70,8 +70,8 @@ MERGED from [androidx.core:core-viewtree:1.0.0] C:\Users\AN20545092\.gradle\cach
 	xmlns:android
 		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:2:11-69
 application
-ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:4:5-37:19
-INJECTED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:4:5-37:19
+ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:4:5-38:19
+INJECTED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:4:5-38:19
 MERGED from [:capacitor-cordova-android-plugins] C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\capacitor-cordova-android-plugins\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:5-9:19
 MERGED from [:capacitor-cordova-android-plugins] C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\capacitor-cordova-android-plugins\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:5-9:19
 MERGED from [androidx.emoji2:emoji2:1.3.0] C:\Users\AN20545092\.gradle\caches\8.14.3\transforms\353d69426d62513a7e19e841051a3a44\transformed\emoji2-1.3.0\AndroidManifest.xml:23:5-33:19
@@ -103,61 +103,63 @@ MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] C:\Users\AN
 	android:allowBackup
 		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:5:9-35
 	android:theme
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:11:9-40
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:12:9-40
+	android:usesCleartextTraffic
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:11:9-44
 activity#com.jalanjyothi.crm.MainActivity
-ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:13:9-26:20
+ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:14:9-27:20
 	android:label
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:16:13-56
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:17:13-56
 	android:launchMode
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:18:13-44
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:19:13-44
 	android:exported
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:19:13-36
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:20:13-36
 	android:configChanges
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:14:13-148
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:15:13-148
 	android:theme
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:17:13-62
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:18:13-62
 	android:name
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:15:13-41
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:16:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:21:13-24:29
+ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:22:13-25:29
 action#android.intent.action.MAIN
-ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:22:17-69
+ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:23:17-69
 	android:name
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:22:25-66
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:23:25-66
 category#android.intent.category.LAUNCHER
-ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:23:17-77
+ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:24:17-77
 	android:name
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:23:27-74
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:24:27-74
 uses-permission#android.permission.INTERNET
-ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:41:5-67
+ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:42:5-67
 	android:name
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:41:22-64
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:42:22-64
 uses-permission#android.permission.READ_EXTERNAL_STORAGE
-ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:42:5-80
+ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:43:5-80
 	android:name
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:42:22-77
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:43:22-77
 uses-permission#android.permission.WRITE_EXTERNAL_STORAGE
-ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:43:5-81
+ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:44:5-81
 	android:name
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:43:22-78
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:44:22-78
 uses-permission#android.permission.READ_MEDIA_IMAGES
-ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:44:5-76
+ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:45:5-76
 	android:name
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:44:22-73
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:45:22-73
 uses-permission#android.permission.READ_MEDIA_VIDEO
-ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:45:5-75
-	android:name
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:45:22-72
-uses-permission#android.permission.READ_MEDIA_AUDIO
 ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:46:5-75
 	android:name
 		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:46:22-72
-meta-data#android.support.FILE_PROVIDER_PATHS
-ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:33:13-35:64
-	android:resource
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:35:17-51
+uses-permission#android.permission.READ_MEDIA_AUDIO
+ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:47:5-75
 	android:name
-		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:34:17-67
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:47:22-72
+meta-data#android.support.FILE_PROVIDER_PATHS
+ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:34:13-36:64
+	android:resource
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:36:17-51
+	android:name
+		ADDED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml:35:17-67
 uses-sdk
 INJECTED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from C:\Users\AN20545092\glodenversion\Workspace\MyCRM\MyCRM\client\android\app\src\main\AndroidManifest.xml

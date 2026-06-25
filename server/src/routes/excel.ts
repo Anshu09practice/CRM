@@ -17,14 +17,15 @@ function worksheetToJson(worksheet: ExcelJS.Worksheet): Record<string, any>[] {
   if (colCount === 0) return [];
 
   const rows: Record<string, any>[] = [];
-  for (let i = 2; i <= worksheet.rowCount; i++) {
-    const row = worksheet.getRow(i);
+  // Use eachRow instead of rowCount to handle files with incorrect dimension metadata
+  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (rowNumber === 1) return; // Skip header row
     const rowData: Record<string, any> = {};
     for (let j = 0; j < colCount; j++) {
       rowData[headers[j]] = row.getCell(j + 1).value ?? '';
     }
     rows.push(rowData);
-  }
+  });
   return rows;
 }
 

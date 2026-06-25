@@ -163,6 +163,8 @@ export default function ImportModal({ onClose, onImported }: ImportModalProps) {
                   onChange={handleFileUpload}
                   className="input-field"
                   disabled={loading}
+                  title="Upload Excel File"
+                  aria-label="Upload Excel File"
                 />
               </div>
 
@@ -198,13 +200,15 @@ export default function ImportModal({ onClose, onImported }: ImportModalProps) {
 
               {(['item_name', 'sku_id', 'package_quantity_grams', 'purchase_cost', 'selling_price', 'mrp', 'packaging_style'] as const).map(field => (
                 <div key={field} className="flex items-center gap-3">
-                  <label className="text-sm font-medium text-slate-700 w-40 capitalize">
+                  <label id={`label-${field}`} className="text-sm font-medium text-slate-700 w-40 capitalize">
                     {field.replace(/_/g, ' ')}
                   </label>
                   <select
                     value={mapping[field]}
                     onChange={e => setMapping({ ...mapping, [field]: e.target.value })}
                     className="input-field flex-1"
+                    aria-labelledby={`label-${field}`}
+                    title={field.replace(/_/g, ' ')}
                   >
                     <option value="">-- Skip --</option>
                     {headers.map(h => (

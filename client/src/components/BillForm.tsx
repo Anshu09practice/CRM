@@ -231,6 +231,8 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
                 value={billDate}
                 onChange={e => setBillDate(e.target.value)}
                 className="input-field"
+                title="Bill date"
+                aria-label="Bill date"
               />
             </div>
             <input
@@ -302,6 +304,8 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
                         value={item.quantity || ''}
                         onChange={e => updateLineItem(idx, 'quantity', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))}
                         className="w-16 px-2 py-1 border border-slate-300 rounded text-sm text-center"
+                        title="Quantity"
+                        aria-label={`Quantity for ${item.item_name}`}
                       />
                       <span className="text-xs text-slate-500">×</span>
                       <input
@@ -311,6 +315,8 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
                         value={item.selling_price || ''}
                         onChange={e => updateLineItem(idx, 'selling_price', e.target.value === '' ? 0 : (parseFloat(e.target.value) || 0))}
                         className="w-20 px-2 py-1 border border-slate-300 rounded text-sm text-center"
+                        title="Price"
+                        aria-label={`Price for ${item.item_name}`}
                       />
                       <span className="text-sm font-semibold text-slate-700 w-16 text-right">
                         ₹{(item.quantity * item.selling_price).toFixed(0)}
@@ -336,8 +342,9 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
           {/* Discount & Totals */}
           <div className="bg-gradient-to-br from-emerald-50 to-blue-50 rounded-xl p-4 space-y-3">
             <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-slate-700 shrink-0">Discount %</label>
+              <label htmlFor="discount-input" className="text-sm font-medium text-slate-700 shrink-0">Discount %</label>
               <input
+                id="discount-input"
                 type="number"
                 min={0}
                 max={100}
