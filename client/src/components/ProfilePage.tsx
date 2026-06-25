@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+import { api, isOfflineMode, getApiBase } from '../services/api';
+import { localDb } from '../services/localDb';
 import { toast } from 'react-hot-toast';
 
 export default function ProfilePage() {
@@ -10,6 +11,7 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changing, setChanging] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +45,102 @@ export default function ProfilePage() {
       toast.error(err.message);
     } finally {
       setChanging(false);
+    }
+  };
+
+  const handleMasterBackup = async () => {
+    setBackingUp(true);
+    try {
+      let backupData: any;
+
+      if (isOfflineMode()) {
+        // Offline mode: read directly from local IndexedDB
+        const [items, categories, customers, purchases, bills, billItems, payments, expenses] = await Promise.all([
+          localDb.items.toArray(),
+          localDb.categories.toArray(),
+          localDb.customers.toArray(),
+          localDb.purchases.toArray(),
+          localDb.bills.toArray(),
+          localDb.billItems.toArray(),
+          localDb.payments.toArray(),
+          localDb.expenses.toArray(),
+        ]);
+        backupData = {
+          backup_date: new Date().toISOString(),
+          app: 'Jalan Jyothi CRM',
+          version: '1.0.0',
+          data: { items, categories, customers, purchases, bills, billItems, payments, expenses }
+        };
+      } else {
+        // Online mode: fetch from server
+        const headers: Record<string, string> = { Authorization: `Bearer ${localStorage.getItem('jj_token')}` };
+        const base = getApiBase();
+        const [itemsRes, customersRes, purchasesRes, billsRes, expensesRes, categoriesRes] = await Promise.all([
+          fetch(`${base}/items`, { headers }).then(r => r.json()),
+          fetch(`${base}/customers`, { headers }).then(r => r.json()),
+          fetch(`${base}/purchases`, { headers }).then(r => r.json()),
+          fetch(`${base}/bills`, { headers }).then(r => r.json()),
+          fetch(`${base}/expenses`, { headers }).then(r => r.json()),
+          fetch(`${base}/categories`, { headers }).then(r => r.json()),
+        ]);
+        backupData = {
+          backup_date: new Date().toISOString(),
+          app: 'Jalan Jyothi CRM',
+          version: '1.0.0',
+          data: {
+            items: itemsRes.items || itemsRes,
+            categories: categoriesRes,
+            customers: customersRes,
+            purchases: purchasesRes.purchases || purchasesRes,
+            bills: billsRes.bills || billsRes,
+            expenses: expensesRes.expenses || expensesRes,
+          }
+        };
+      }
+
+      const jsonStr = JSON.stringify(backupData, null, 2);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const filename = `jj_crm_backup_${timestamp}.json`;
+
+      // Save to device storage on mobile
+      if ((window as any).Capacitor?.isNativePlatform?.()) {
+        const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
+        try {
+          await Filesystem.mkdir({ path: 'Jalan Jyothi', directory: Directory.Documents, recursive: true });
+        } catch (_e) { /* exists */ }
+        await Filesystem.writeFile({
+          path: `Jalan Jyothi/${filename}`,
+          data: jsonStr,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8
+        });
+        // Also try ExternalStorage (Download folder)
+        try {
+          await Filesystem.mkdir({ path: 'Download/Jalan Jyothi', directory: Directory.ExternalStorage, recursive: true });
+          await Filesystem.writeFile({
+            path: `Download/Jalan Jyothi/${filename}`,
+            data: jsonStr,
+            directory: Directory.ExternalStorage,
+            encoding: Encoding.UTF8
+          });
+        } catch (_e) { /* ExternalStorage may not be available */ }
+        toast.success(`Backup saved to Jalan Jyothi/${filename}`, { duration: 5000 });
+      } else {
+        // Desktop: download as file
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        toast.success('Backup downloaded!');
+      }
+    } catch (err: any) {
+      toast.error('Backup failed: ' + err.message);
+    } finally {
+      setBackingUp(false);
     }
   };
 
@@ -157,6 +255,38 @@ export default function ProfilePage() {
             </div>
           </form>
         )}
+      </div>
+
+      {/* Master Backup */}
+      <div className="card mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-semibold text-slate-700">Data & Backup</h4>
+        </div>
+        <button
+          onClick={handleMasterBackup}
+          disabled={backingUp}
+          className="w-full text-left flex items-center justify-between py-3 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-lg">💾</span>
+            <div>
+              <p className="text-sm font-medium text-slate-900">
+                {backingUp ? 'Creating Backup...' : 'Master Backup'}
+              </p>
+              <p className="text-xs text-slate-500">
+                Export all data (Inventory, Purchases, Bills, Customers, Expenses) as JSON
+              </p>
+            </div>
+          </div>
+          {backingUp ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600 shrink-0"></div>
+          ) : (
+            <span className="text-slate-400 shrink-0">›</span>
+          )}
+        </button>
+        <p className="text-[11px] text-slate-400 mt-2 px-3">
+          Saved to: Documents/Jalan Jyothi/ folder on your device
+        </p>
       </div>
 
       {/* App Info */}
