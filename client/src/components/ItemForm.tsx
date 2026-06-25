@@ -65,7 +65,7 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
     const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'category_id' ? (value ? parseInt(value) : null) : (type === 'number' ? parseFloat(value) || 0 : value)
+      [name]: name === 'category_id' ? (value ? parseInt(value) : null) : (type === 'number' ? (value === '' ? 0 : parseFloat(value)) : value)
     }));
   };
 
@@ -139,7 +139,7 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
 
           <div>
             <label className="label">Package Quantity (grams) *</label>
-            <input type="number" name="package_quantity_grams" value={formData.package_quantity_grams} onChange={handleChange} className="input w-full" min="1" step="1" />
+            <input type="number" name="package_quantity_grams" value={formData.package_quantity_grams || ''} onChange={handleChange} className="input w-full" min="1" step="1" />
           </div>
 
           {/* Sizing Preview */}
@@ -154,15 +154,15 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="label">Purchase ₹</label>
-              <input type="number" name="purchase_cost" value={formData.purchase_cost} onChange={handleChange} className="input w-full" min="0" step="0.01" />
+              <input type="number" name="purchase_cost" value={formData.purchase_cost || ''} onChange={handleChange} className="input w-full" min="0" step="0.01" />
             </div>
             <div>
               <label className="label">Selling ₹</label>
-              <input type="number" name="selling_price" value={formData.selling_price} onChange={handleChange} className="input w-full" min="0" step="0.01" />
+              <input type="number" name="selling_price" value={formData.selling_price || ''} onChange={handleChange} className="input w-full" min="0" step="0.01" />
             </div>
             <div>
               <label className="label">MRP ₹</label>
-              <input type="number" name="mrp" value={formData.mrp} onChange={handleChange} className="input w-full" min="0" step="0.01" />
+              <input type="number" name="mrp" value={formData.mrp || ''} onChange={handleChange} className="input w-full" min="0" step="0.01" />
             </div>
           </div>
 

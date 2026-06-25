@@ -220,6 +220,11 @@ const migrations: Migration[] = [
 
       ALTER TABLE items ADD COLUMN category_id INTEGER REFERENCES categories(id);
       CREATE INDEX IF NOT EXISTS idx_items_category ON items(category_id);
+
+      INSERT OR IGNORE INTO categories (name) VALUES ('Sugar');
+      INSERT OR IGNORE INTO categories (name) VALUES ('Spices');
+      INSERT OR IGNORE INTO categories (name) VALUES ('Dry Fruit');
+      INSERT OR IGNORE INTO categories (name) VALUES ('Super Food');
     `
   },
   {

@@ -1,10 +1,42 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import path from 'path';
 import fs from 'fs';
 
 const router = Router();
+
+// Helper: convert ExcelJS worksheet to JSON array (like XLSX.utils.sheet_to_json)
+function worksheetToJson(worksheet: ExcelJS.Worksheet): Record<string, any>[] {
+  const headers: string[] = [];
+  const headerRow = worksheet.getRow(1);
+  headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    headers[colNumber - 1] = String(cell.value ?? '');
+  });
+  const colCount = headers.length;
+  if (colCount === 0) return [];
+
+  const rows: Record<string, any>[] = [];
+  for (let i = 2; i <= worksheet.rowCount; i++) {
+    const row = worksheet.getRow(i);
+    const rowData: Record<string, any> = {};
+    for (let j = 0; j < colCount; j++) {
+      rowData[headers[j]] = row.getCell(j + 1).value ?? '';
+    }
+    rows.push(rowData);
+  }
+  return rows;
+}
+
+async function readWorkbook(filePath: string): Promise<ExcelJS.Workbook> {
+  const workbook = new ExcelJS.Workbook();
+  if (filePath.toLowerCase().endsWith('.csv')) {
+    await workbook.csv.readFile(filePath);
+  } else {
+    await workbook.xlsx.readFile(filePath);
+  }
+  return workbook;
+}
 
 // Configure multer for file upload
 const upload = multer({
@@ -25,19 +57,19 @@ const upload = multer({
 });
 
 // POST /api/excel/parse - Upload and parse Excel file, return preview data
-router.post('/parse', upload.single('file'), (req: Request, res: Response) => {
+router.post('/parse', upload.single('file'), async (req: Request, res: Response) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
 
   try {
-    const workbook = XLSX.readFile(req.file.path);
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    const workbook = await readWorkbook(req.file.path);
+    const worksheet = workbook.worksheets[0];
+    const sheetName = worksheet.name;
+    const data = worksheetToJson(worksheet);
 
     // Get column headers
-    const headers = data.length > 0 ? Object.keys(data[0] as object) : [];
+    const headers = data.length > 0 ? Object.keys(data[0]) : [];
 
     // Clean up uploaded file
     fs.unlinkSync(req.file.path);
@@ -58,7 +90,7 @@ router.post('/parse', upload.single('file'), (req: Request, res: Response) => {
 });
 
 // POST /api/excel/parse-source - Parse existing source files
-router.post('/parse-source', (req: Request, res: Response) => {
+router.post('/parse-source', async (req: Request, res: Response) => {
   const { filename } = req.body;
 
   if (!filename) {
@@ -74,12 +106,12 @@ router.post('/parse-source', (req: Request, res: Response) => {
   }
 
   try {
-    const workbook = XLSX.readFile(sourcePath);
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    const workbook = await readWorkbook(sourcePath);
+    const worksheet = workbook.worksheets[0];
+    const sheetName = worksheet.name;
+    const data = worksheetToJson(worksheet);
 
-    const headers = data.length > 0 ? Object.keys(data[0] as object) : [];
+    const headers = data.length > 0 ? Object.keys(data[0]) : [];
 
     res.json({
       headers,

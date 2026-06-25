@@ -173,15 +173,14 @@ function CategoriesSection() {
     finally { setLoading(false); }
   }
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleAdd() {
     if (!newName.trim()) return;
     try {
       await api.createCategory({ name: newName.trim() });
       toast.success('Category added');
       setNewName('');
       loadCategories();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (err: any) { toast.error(err.message || 'Failed to add category'); }
   }
 
   async function handleDelete(id: number) {
@@ -190,22 +189,23 @@ function CategoriesSection() {
       await api.deleteCategory(id);
       toast.success('Category deleted');
       loadCategories();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (err: any) { toast.error(err.message || 'Failed to delete category'); }
   }
 
   return (
     <div className="space-y-4">
       <h2 className="font-semibold text-gray-800">Item Categories</h2>
 
-      <form onSubmit={handleAdd} className="flex gap-2">
+      <div className="flex gap-2">
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
           placeholder="New category name..."
           className="input flex-1"
         />
-        <button type="submit" className="btn-primary text-xs">Add</button>
-      </form>
+        <button type="button" onClick={handleAdd} className="btn-primary text-xs">Add</button>
+      </div>
 
       {loading ? <div className="h-20 bg-gray-200 rounded-lg animate-pulse" /> : (
         <div className="space-y-2">

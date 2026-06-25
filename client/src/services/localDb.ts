@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 
 // ===== Database Schema =====
@@ -159,6 +159,20 @@ class LocalCRMDatabase extends Dexie {
 }
 
 export const localDb = new LocalCRMDatabase();
+
+// Seed default categories if the table is empty
+localDb.on('ready', async () => {
+  const count = await localDb.categories.count();
+  if (count === 0) {
+    const ts = new Date().toISOString();
+    await localDb.categories.bulkAdd([
+      { name: 'Sugar', description: '', created_at: ts },
+      { name: 'Spices', description: '', created_at: ts },
+      { name: 'Dry Fruit', description: '', created_at: ts },
+      { name: 'Super Food', description: '', created_at: ts },
+    ]);
+  }
+});
 
 // ===== Helper Functions =====
 
@@ -1110,30 +1124,34 @@ export const localApi = {
     return { message: 'Backup restored successfully', restored };
   },
 
-  // ===== Excel (client-side parsing with xlsx) =====
+  // ===== Excel (client-side parsing with exceljs) =====
   async parseExcel(file: File): Promise<{ headers: string[]; rows: any[]; total_rows: number }> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const sheetName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-          const headers = jsonData.length > 0 ? Object.keys(jsonData[0] as object) : [];
-          resolve({
-            headers,
-            rows: jsonData.slice(0, 100),
-            total_rows: jsonData.length
-          });
-        } catch (err: any) {
-          reject(new Error(`Failed to parse file: ${err.message}`));
-        }
-      };
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsArrayBuffer(file);
+    const buffer = await file.arrayBuffer();
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.worksheets[0];
+
+    const headers: string[] = [];
+    const headerRow = worksheet.getRow(1);
+    headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      headers[colNumber - 1] = String(cell.value ?? '');
     });
+
+    const rows: any[] = [];
+    for (let i = 2; i <= worksheet.rowCount; i++) {
+      const row = worksheet.getRow(i);
+      const rowData: any = {};
+      for (let j = 0; j < headers.length; j++) {
+        rowData[headers[j]] = row.getCell(j + 1).value ?? '';
+      }
+      rows.push(rowData);
+    }
+
+    return {
+      headers,
+      rows: rows.slice(0, 100),
+      total_rows: rows.length
+    };
   },
 
   async getSourceFiles(): Promise<{ files: { name: string; size: number; modified: string }[] }> {

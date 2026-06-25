@@ -128,8 +128,8 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
             <label className="block text-sm font-medium text-slate-700 mb-1">Quantity (units) *</label>
             <input
               type="number"
-              value={formData.quantity}
-              onChange={e => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+              value={formData.quantity || ''}
+              onChange={e => setFormData(prev => ({ ...prev, quantity: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) }))}
               className="input-field"
               min="1"
               step="1"
@@ -142,8 +142,8 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
             <label className="block text-sm font-medium text-slate-700 mb-1">Purchase Cost (₹ per unit)</label>
             <input
               type="number"
-              value={formData.purchase_cost}
-              onChange={e => setFormData(prev => ({ ...prev, purchase_cost: parseFloat(e.target.value) || 0 }))}
+              value={formData.purchase_cost || ''}
+              onChange={e => setFormData(prev => ({ ...prev, purchase_cost: e.target.value === '' ? 0 : (parseFloat(e.target.value) || 0) }))}
               className="input-field"
               min="0"
               step="0.01"

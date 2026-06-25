@@ -23,22 +23,37 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\AN20545092\\OneDrive - Wipro\\Desktop\\workspace\\MyCRM\\client\\android\\app\\src\\main\\res\\values\\styles.xml",
+                    "source": "C:\\Users\\AN20545092\\glodenversion\\Workspace\\MyCRM\\MyCRM\\client\\android\\app\\src\\main\\res\\values\\strings.xml",
                     "from": {
-                        "startLines": "4,11,18",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "93,413,664",
-                        "endLines": "9,15,20",
-                        "endColumns": "12,12,12",
-                        "endOffsets": "407,657,810"
+                        "startLines": "2,5,4,3",
+                        "startColumns": "4,4,4,4",
+                        "startOffsets": "57,220,158,102",
+                        "endColumns": "43,65,60,54",
+                        "endOffsets": "96,281,214,152"
                     },
                     "to": {
-                        "startLines": "342,348,353",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "22461,22745,22994",
-                        "endLines": "347,352,355",
-                        "endColumns": "12,12,12",
-                        "endOffsets": "22740,22989,23140"
+                        "startLines": "323,331,333,336",
+                        "startColumns": "4,4,4,4",
+                        "startOffsets": "21078,21633,21779,21964",
+                        "endColumns": "43,65,60,54",
+                        "endOffsets": "21117,21694,21835,22014"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\AN20545092\\glodenversion\\Workspace\\MyCRM\\MyCRM\\client\\node_modules\\@capacitor\\android\\capacitor\\build\\intermediates\\packaged_res\\debug\\packageDebugResources\\values\\values.xml",
+                    "from": {
+                        "startLines": "2,3,4,5",
+                        "startColumns": "4,4,4,4",
+                        "startOffsets": "100,175,251,331",
+                        "endColumns": "74,75,79,79",
+                        "endOffsets": "170,246,326,406"
+                    },
+                    "to": {
+                        "startLines": "41,42,43,332",
+                        "startColumns": "4,4,4,4",
+                        "startOffsets": "2846,2921,2997,21699",
+                        "endColumns": "74,75,79,79",
+                        "endOffsets": "2916,2992,3072,21774"
                     }
                 },
                 {
@@ -129,23 +144,6 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\AN20545092\\OneDrive - Wipro\\Desktop\\workspace\\MyCRM\\client\\node_modules\\@capacitor\\android\\capacitor\\build\\intermediates\\packaged_res\\debug\\packageDebugResources\\values\\values.xml",
-                    "from": {
-                        "startLines": "2,3,4,5",
-                        "startColumns": "4,4,4,4",
-                        "startOffsets": "100,175,251,331",
-                        "endColumns": "74,75,79,79",
-                        "endOffsets": "170,246,326,406"
-                    },
-                    "to": {
-                        "startLines": "41,42,43,332",
-                        "startColumns": "4,4,4,4",
-                        "startOffsets": "2846,2921,2997,21699",
-                        "endColumns": "74,75,79,79",
-                        "endOffsets": "2916,2992,3072,21774"
-                    }
-                },
-                {
                     "source": "C:\\Users\\AN20545092\\.gradle\\caches\\8.14.3\\transforms\\754c4f1b691d2a1223e4f8f413992fee\\transformed\\fragment-1.8.9\\res\\values\\values.xml",
                     "from": {
                         "startLines": "2,3,4,5,10",
@@ -184,13 +182,13 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\AN20545092\\OneDrive - Wipro\\Desktop\\workspace\\MyCRM\\client\\android\\app\\src\\main\\res\\values\\ic_launcher_background.xml",
+                    "source": "C:\\Users\\AN20545092\\glodenversion\\Workspace\\MyCRM\\MyCRM\\client\\android\\app\\src\\main\\res\\values\\ic_launcher_background.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
-                        "startOffsets": "55",
+                        "startOffsets": "57",
                         "endColumns": "56",
-                        "endOffsets": "107"
+                        "endOffsets": "109"
                     },
                     "to": {
                         "startLines": "54",
@@ -198,23 +196,6 @@
                         "startOffsets": "3758",
                         "endColumns": "56",
                         "endOffsets": "3810"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\AN20545092\\OneDrive - Wipro\\Desktop\\workspace\\MyCRM\\client\\android\\app\\src\\main\\res\\values\\strings.xml",
-                    "from": {
-                        "startLines": "2,5,4,3",
-                        "startColumns": "4,4,4,4",
-                        "startOffsets": "55,215,154,99",
-                        "endColumns": "43,65,60,54",
-                        "endOffsets": "94,276,210,149"
-                    },
-                    "to": {
-                        "startLines": "323,331,333,336",
-                        "startColumns": "4,4,4,4",
-                        "startOffsets": "21078,21633,21779,21964",
-                        "endColumns": "43,65,60,54",
-                        "endOffsets": "21117,21694,21835,22014"
                     }
                 },
                 {
@@ -254,22 +235,22 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\AN20545092\\OneDrive - Wipro\\Desktop\\workspace\\MyCRM\\client\\node_modules\\@capacitor\\splash-screen\\android\\build\\intermediates\\packaged_res\\debug\\packageDebugResources\\values\\values.xml",
+                    "source": "C:\\Users\\AN20545092\\glodenversion\\Workspace\\MyCRM\\MyCRM\\client\\android\\app\\src\\main\\res\\values\\styles.xml",
                     "from": {
-                        "startLines": "2,4,7",
+                        "startLines": "4,11,18",
                         "startColumns": "4,4,4",
-                        "startOffsets": "55,141,289",
-                        "endLines": "3,6,9",
+                        "startOffsets": "97,424,682",
+                        "endLines": "9,15,20",
                         "endColumns": "12,12,12",
-                        "endOffsets": "136,284,448"
+                        "endOffsets": "416,672,830"
                     },
                     "to": {
-                        "startLines": "1903,1905,1908",
+                        "startLines": "342,348,353",
                         "startColumns": "4,4,4",
-                        "startOffsets": "127416,127502,127650",
-                        "endLines": "1904,1907,1910",
+                        "startOffsets": "22461,22745,22994",
+                        "endLines": "347,352,355",
                         "endColumns": "12,12,12",
-                        "endOffsets": "127497,127645,127809"
+                        "endOffsets": "22740,22989,23140"
                     }
                 },
                 {
@@ -287,6 +268,25 @@
                         "startOffsets": "17276,18520",
                         "endColumns": "41,59",
                         "endOffsets": "17313,18575"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\AN20545092\\glodenversion\\Workspace\\MyCRM\\MyCRM\\client\\node_modules\\@capacitor\\splash-screen\\android\\build\\intermediates\\packaged_res\\debug\\packageDebugResources\\values\\values.xml",
+                    "from": {
+                        "startLines": "2,4,7",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,141,289",
+                        "endLines": "3,6,9",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "136,284,448"
+                    },
+                    "to": {
+                        "startLines": "1903,1905,1908",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "127416,127502,127650",
+                        "endLines": "1904,1907,1910",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "127497,127645,127809"
                     }
                 },
                 {

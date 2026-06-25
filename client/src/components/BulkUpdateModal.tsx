@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { api } from '../services/api';
 import { toast } from 'react-hot-toast';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 interface BulkUpdateModalProps {
   onClose: () => void;
@@ -85,15 +85,33 @@ export default function BulkUpdateModal({ onClose, onUpdated }: BulkUpdateModalP
     const isExcel = file.name.match(/\.(xlsx|xls)$/i);
 
     if (isExcel) {
-      // Parse Excel file using xlsx library
+      // Parse Excel file using exceljs library
       const reader = new FileReader();
-      reader.onload = (evt) => {
+      reader.onload = async (evt) => {
         try {
-          const data = new Uint8Array(evt.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const sheetName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as any[];
+          const buffer = evt.target?.result as ArrayBuffer;
+          const workbook = new ExcelJS.Workbook();
+          await workbook.xlsx.load(buffer);
+          const worksheet = workbook.worksheets[0];
+
+          // Extract headers from first row
+          const headers: string[] = [];
+          const headerRow = worksheet.getRow(1);
+          headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            headers[colNumber - 1] = String(cell.value ?? '');
+          });
+
+          // Extract data rows
+          const jsonData: any[] = [];
+          for (let i = 2; i <= worksheet.rowCount; i++) {
+            const row = worksheet.getRow(i);
+            const rowData: any = {};
+            for (let j = 0; j < headers.length; j++) {
+              rowData[headers[j]] = row.getCell(j + 1).value ?? '';
+            }
+            jsonData.push(rowData);
+          }
+
           if (jsonData.length === 0) {
             setError('No valid rows found in the Excel file.');
             return;

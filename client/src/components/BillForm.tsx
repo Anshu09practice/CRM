@@ -22,7 +22,7 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
   const [customerName, setCustomerName] = useState(bill?.customer_name || '');
   const [customerPhone, setCustomerPhone] = useState(bill?.customer_phone || '');
   const [customerAddress, setCustomerAddress] = useState(bill?.customer_address || '');
-  const [discount, setDiscount] = useState(String(bill?.discount_percent || 0));
+  const [discount, setDiscount] = useState(bill?.discount_percent ? String(bill.discount_percent) : '');
   const [notes, setNotes] = useState(bill?.notes || '');
   const [billDate, setBillDate] = useState(bill?.bill_date || new Date().toISOString().split('T')[0]);
   const [lineItems, setLineItems] = useState<LineItem[]>(
@@ -231,8 +231,8 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
                         type="number"
                         min={1}
                         max={item.available_qty}
-                        value={item.quantity}
-                        onChange={e => updateLineItem(idx, 'quantity', parseInt(e.target.value) || 1)}
+                        value={item.quantity || ''}
+                        onChange={e => updateLineItem(idx, 'quantity', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))}
                         className="w-16 px-2 py-1 border border-slate-300 rounded text-sm text-center"
                       />
                       <span className="text-xs text-slate-500">×</span>
@@ -240,8 +240,8 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
                         type="number"
                         min={0}
                         step={0.5}
-                        value={item.selling_price}
-                        onChange={e => updateLineItem(idx, 'selling_price', parseFloat(e.target.value) || 0)}
+                        value={item.selling_price || ''}
+                        onChange={e => updateLineItem(idx, 'selling_price', e.target.value === '' ? 0 : (parseFloat(e.target.value) || 0))}
                         className="w-20 px-2 py-1 border border-slate-300 rounded text-sm text-center"
                       />
                       <span className="text-sm font-semibold text-slate-700 w-16 text-right">
