@@ -4,9 +4,11 @@ echo    JJ CRM - Build Android APK (Release)
 echo =========================================
 echo.
 
-:: PCI DSS 2.2.5: Use environment variables, not hardcoded paths
+:: Set JAVA_HOME (OpenLogic JDK 17)
 if not defined JAVA_HOME (
-  if exist "C:\Program Files\Android\Android Studio\jbr" (
+  if exist "C:\Program Files\OpenLogic\jdk-17.0.14.7-hotspot" (
+    set "JAVA_HOME=C:\Program Files\OpenLogic\jdk-17.0.14.7-hotspot"
+  ) else if exist "C:\Program Files\Android\Android Studio\jbr" (
     set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
   ) else (
     echo ERROR: JAVA_HOME not set. Set JAVA_HOME environment variable.
@@ -17,6 +19,20 @@ if not defined JAVA_HOME (
 
 if not defined ANDROID_HOME (
   set ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk
+)
+
+:: Default signing config
+if not defined KEYSTORE_PATH (
+  set "KEYSTORE_PATH=%~dp0client\android\app\release.jks"
+)
+if not defined KEYSTORE_PASSWORD (
+  set "KEYSTORE_PASSWORD=jjhome"
+)
+if not defined KEY_ALIAS (
+  set "KEY_ALIAS=jj-crm-release"
+)
+if not defined KEY_PASSWORD (
+  set "KEY_PASSWORD=jjhome"
 )
 
 set PATH=C:\Program Files\nodejs;%PATH%
@@ -59,22 +75,20 @@ echo Building Release APK...
 cd android
 set GRADLE_OPTS=-Dorg.gradle.vfs.watch=false
 
-:: Check for signing config
-if not defined KEYSTORE_PATH (
+:: Sign with keystore
+if not exist "%KEYSTORE_PATH%" (
   echo.
-  echo WARNING: KEYSTORE_PATH not set. Building unsigned release APK.
-  echo For PCI compliance, sign with: set KEYSTORE_PATH=path\to\keystore.jks
-  echo Also set: KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD
-  echo.
-  call gradlew assembleRelease --parallel
-) else (
-  echo Signing with keystore: %KEYSTORE_PATH%
-  call gradlew assembleRelease --parallel ^
-    -Pandroid.injected.signing.store.file="%KEYSTORE_PATH%" ^
-    -Pandroid.injected.signing.store.password="%KEYSTORE_PASSWORD%" ^
-    -Pandroid.injected.signing.key.alias="%KEY_ALIAS%" ^
-    -Pandroid.injected.signing.key.password="%KEY_PASSWORD%"
+  echo ERROR: Keystore not found at: %KEYSTORE_PATH%
+  echo Run generate-keystore.bat first to create it.
+  pause
+  exit /b 1
 )
+echo Signing with keystore: %KEYSTORE_PATH%
+call gradlew assembleRelease --parallel ^
+  -Pandroid.injected.signing.store.file="%KEYSTORE_PATH%" ^
+  -Pandroid.injected.signing.store.password="%KEYSTORE_PASSWORD%" ^
+  -Pandroid.injected.signing.key.alias="%KEY_ALIAS%" ^
+  -Pandroid.injected.signing.key.password="%KEY_PASSWORD%"
 
 if errorlevel 1 (
   echo.

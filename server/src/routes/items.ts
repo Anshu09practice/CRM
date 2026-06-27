@@ -143,13 +143,19 @@ router.post('/bulk-update', (req: Request, res: Response) => {
         categoryId = parseInt(item.category_id) || null;
       }
 
-      // Try to find existing item by id or name
+      // Try to find existing item by id, sku_id, or by name + package quantity (composite uniqueness)
       let existing: any = null;
       if (item.id && String(item.id).trim()) {
         existing = queryOne('SELECT * FROM items WHERE id = ?', [parseInt(item.id)]);
       }
+      if (!existing && skuId) {
+        existing = queryOne('SELECT * FROM items WHERE sku_id = ?', [skuId]);
+      }
+      if (!existing && qty > 0) {
+        existing = queryOne('SELECT * FROM items WHERE LOWER(item_name) = LOWER(?) AND package_quantity_grams = ?', [name, qty]);
+      }
       if (!existing) {
-        existing = queryOne('SELECT * FROM items WHERE LOWER(item_name) = LOWER(?)', [name]);
+        existing = queryOne('SELECT * FROM items WHERE LOWER(item_name) = LOWER(?) AND package_quantity_grams = 0', [name]);
       }
 
       if (existing) {
@@ -343,6 +349,14 @@ router.put('/:id', (req: Request, res: Response) => {
 
   const updated = queryOne('SELECT * FROM items WHERE id = ?', [req.params.id]);
   res.json(updated);
+});
+
+// DELETE /api/items/bulk-delete - Delete ALL items (owner only)
+router.delete('/bulk-delete', requireRole('owner'), (_req: Request, res: Response) => {
+  const countResult = queryOne('SELECT COUNT(*) as total FROM items') as any;
+  const total = countResult?.total || 0;
+  runQuery('DELETE FROM items');
+  res.json({ message: `Deleted all ${total} items`, deleted: total });
 });
 
 // DELETE /api/items/:id - Delete item (owner only)

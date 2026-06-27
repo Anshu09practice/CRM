@@ -1,0 +1,378 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const crypto_1 = __importDefault(require("crypto"));
+const db_1 = require("../db");
+const auth_1 = require("../middleware/auth");
+const router = (0, express_1.Router)();
+// Admin OTP store: { otp, expiresAt }
+const ADMIN_USERNAME = 'anshu';
+let adminOtp = null;
+function generateAdminOtp() {
+    const otp = crypto_1.default.randomInt(100000, 999999).toString();
+    adminOtp = { otp, expiresAt: Date.now() + 5 * 60 * 1000 }; // 5 min expiry
+    console.log('');
+    console.log('=========================================');
+    console.log(`  ADMIN OTP for "${ADMIN_USERNAME}": ${otp}`);
+    console.log('  Expires in 5 minutes');
+    console.log('=========================================');
+    console.log('');
+    return otp;
+}
+function verifyAdminOtp(otp) {
+    if (!adminOtp)
+        return false;
+    if (Date.now() > adminOtp.expiresAt) {
+        adminOtp = null;
+        return false;
+    }
+    const valid = adminOtp.otp === otp;
+    if (valid)
+        adminOtp = null; // One-time use
+    return valid;
+}
+// PCI DSS 8.2.3: Password must be 12+ chars with complexity
+function validatePassword(password) {
+    if (password.length < 12)
+        return 'Password must be at least 12 characters';
+    if (!/[A-Z]/.test(password))
+        return 'Password must contain at least one uppercase letter';
+    if (!/[a-z]/.test(password))
+        return 'Password must contain at least one lowercase letter';
+    if (!/[0-9]/.test(password))
+        return 'Password must contain at least one number';
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password))
+        return 'Password must contain at least one special character';
+    return null;
+}
+/**
+ * POST /api/auth/setup - First-time setup (create owner account)
+ * Only works if no users exist yet
+ */
+router.post('/setup', async (req, res) => {
+    const { username, password, security_question, security_answer } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required' });
+    }
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+        return res.status(400).json({ error: passwordError });
+    }
+    if (!security_question || !security_answer) {
+        return res.status(400).json({ error: 'Security question and answer are required for password recovery' });
+    }
+    // Check if any user already exists
+    const existing = (0, db_1.queryAll)('SELECT id FROM users LIMIT 1');
+    if (existing.length > 0) {
+        return res.status(403).json({ error: 'Setup already completed. Use login instead.' });
+    }
+    const salt = await bcryptjs_1.default.genSalt(10);
+    const password_hash = await bcryptjs_1.default.hash(password, salt);
+    const answer_hash = await bcryptjs_1.default.hash(security_answer.trim().toLowerCase(), salt);
+    const result = (0, db_1.runQuery)(`INSERT INTO users (username, password_hash, role, security_question, security_answer_hash, is_active)
+     VALUES (?, ?, 'owner', ?, ?, 1)`, [username.trim().toLowerCase(), password_hash, security_question.trim(), answer_hash]);
+    const userId = result.lastInsertRowid;
+    const token = (0, auth_1.generateToken)(userId, username.trim().toLowerCase(), 'owner');
+    const refreshToken = (0, auth_1.generateRefreshToken)(userId, username.trim().toLowerCase(), 'owner');
+    res.status(201).json({
+        message: 'Owner account created',
+        token,
+        refreshToken,
+        user: { id: userId, username: username.trim().toLowerCase(), role: 'owner' }
+    });
+});
+/**
+ * POST /api/auth/login - Login with username and password
+ * PCI DSS 8.1.6: Account lockout after 6 failed attempts
+ * PCI DSS 10.2: Audit logging for all auth events
+ */
+router.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username) {
+        return res.status(400).json({ error: 'Username is required' });
+    }
+    const normalizedUsername = username.trim().toLowerCase();
+    // Admin OTP flow: if username is admin and no password, generate OTP
+    if (normalizedUsername === ADMIN_USERNAME && !password) {
+        generateAdminOtp();
+        return res.json({ otp_sent: true, message: 'OTP generated. Check server console.' });
+    }
+    if (!password) {
+        return res.status(400).json({ error: 'Password is required' });
+    }
+    // PCI DSS 8.1.6: Check account lockout
+    if ((0, auth_1.isAccountLocked)(normalizedUsername)) {
+        (0, auth_1.auditLog)('LOGIN_BLOCKED_LOCKOUT', { username: normalizedUsername, ip: req.ip });
+        return res.status(423).json({ error: 'Account locked due to too many failed attempts. Try again in 30 minutes.' });
+    }
+    // Admin OTP verification
+    if (normalizedUsername === ADMIN_USERNAME) {
+        if (!verifyAdminOtp(password)) {
+            (0, auth_1.recordFailedLogin)(normalizedUsername);
+            (0, auth_1.auditLog)('LOGIN_FAILED', { username: normalizedUsername, reason: 'invalid_otp', ip: req.ip });
+            return res.status(401).json({ error: 'Invalid or expired OTP' });
+        }
+        (0, auth_1.clearLoginAttempts)(normalizedUsername);
+        // Ensure admin user exists in DB
+        let adminUser = (0, db_1.queryOne)('SELECT * FROM users WHERE username = ?', [ADMIN_USERNAME]);
+        if (!adminUser) {
+            const placeholder = await bcryptjs_1.default.hash(crypto_1.default.randomBytes(32).toString('hex'), 10);
+            (0, db_1.runQuery)(`INSERT INTO users (username, password_hash, role, is_active) VALUES (?, ?, 'owner', 1)`, [ADMIN_USERNAME, placeholder]);
+            adminUser = (0, db_1.queryOne)('SELECT * FROM users WHERE username = ?', [ADMIN_USERNAME]);
+        }
+        (0, db_1.runQuery)('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [adminUser.id]);
+        const token = (0, auth_1.generateToken)(adminUser.id, adminUser.username, 'owner');
+        const refreshToken = (0, auth_1.generateRefreshToken)(adminUser.id, adminUser.username, 'owner');
+        (0, auth_1.auditLog)('LOGIN_SUCCESS', { userId: adminUser.id, username: adminUser.username, method: 'OTP', ip: req.ip });
+        return res.json({
+            token,
+            refreshToken,
+            user: { id: adminUser.id, username: adminUser.username, role: 'owner' }
+        });
+    }
+    const user = (0, db_1.queryOne)('SELECT * FROM users WHERE username = ? AND is_active = 1', [normalizedUsername]);
+    if (!user) {
+        (0, auth_1.recordFailedLogin)(normalizedUsername);
+        (0, auth_1.auditLog)('LOGIN_FAILED', { username: normalizedUsername, reason: 'user_not_found', ip: req.ip });
+        return res.status(401).json({ error: 'Invalid username or password' });
+    }
+    const valid = await bcryptjs_1.default.compare(password, user.password_hash);
+    if (!valid) {
+        (0, auth_1.recordFailedLogin)(normalizedUsername);
+        (0, auth_1.auditLog)('LOGIN_FAILED', { username: normalizedUsername, reason: 'invalid_password', ip: req.ip });
+        return res.status(401).json({ error: 'Invalid username or password' });
+    }
+    // Success — clear lockout counter
+    (0, auth_1.clearLoginAttempts)(normalizedUsername);
+    // Update last login
+    (0, db_1.runQuery)('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
+    const token = (0, auth_1.generateToken)(user.id, user.username, user.role);
+    const refreshToken = (0, auth_1.generateRefreshToken)(user.id, user.username, user.role);
+    (0, auth_1.auditLog)('LOGIN_SUCCESS', { userId: user.id, username: user.username, ip: req.ip });
+    res.json({
+        token,
+        refreshToken,
+        user: { id: user.id, username: user.username, role: user.role }
+    });
+});
+/**
+ * POST /api/auth/refresh - Refresh access token using refresh token
+ */
+router.post('/refresh', (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+        return res.status(400).json({ error: 'Refresh token is required' });
+    }
+    const payload = (0, auth_1.verifyToken)(refreshToken);
+    if (!payload || payload.type !== 'refresh') {
+        return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+    // Verify user still exists and is active
+    const user = (0, db_1.queryOne)('SELECT * FROM users WHERE id = ? AND is_active = 1', [payload.userId]);
+    if (!user) {
+        return res.status(401).json({ error: 'User account not found or deactivated' });
+    }
+    const newToken = (0, auth_1.generateToken)(user.id, user.username, user.role);
+    const newRefreshToken = (0, auth_1.generateRefreshToken)(user.id, user.username, user.role);
+    res.json({ token: newToken, refreshToken: newRefreshToken });
+});
+/**
+ * GET /api/auth/verify - Check if current token is valid
+ */
+router.get('/verify', auth_1.authMiddleware, (req, res) => {
+    const user = req.user;
+    res.json({ valid: true, user: { id: user.userId, username: user.username, role: user.role } });
+});
+/**
+ * POST /api/auth/change-password - Change own password (requires auth)
+ */
+router.post('/change-password', auth_1.authMiddleware, async (req, res) => {
+    const { current_password, new_password } = req.body;
+    const authUser = req.user;
+    if (!current_password || !new_password) {
+        return res.status(400).json({ error: 'Current and new password are required' });
+    }
+    const passwordError = validatePassword(new_password);
+    if (passwordError) {
+        return res.status(400).json({ error: passwordError });
+    }
+    const dbUser = (0, db_1.queryOne)('SELECT * FROM users WHERE id = ?', [authUser.userId]);
+    if (!dbUser) {
+        return res.status(404).json({ error: 'User not found' });
+    }
+    const valid = await bcryptjs_1.default.compare(current_password, dbUser.password_hash);
+    if (!valid) {
+        return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+    const salt = await bcryptjs_1.default.genSalt(10);
+    const password_hash = await bcryptjs_1.default.hash(new_password, salt);
+    (0, db_1.runQuery)('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash, authUser.userId]);
+    res.json({ message: 'Password changed successfully' });
+});
+/**
+ * POST /api/auth/forgot-password - Reset password via security question
+ */
+router.post('/forgot-password', async (req, res) => {
+    const { username, security_answer, new_password } = req.body;
+    if (!username) {
+        return res.status(400).json({ error: 'Username is required' });
+    }
+    const user = (0, db_1.queryOne)('SELECT * FROM users WHERE username = ? AND is_active = 1', [username.trim().toLowerCase()]);
+    if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+    }
+    // If only username provided, return the security question
+    if (!security_answer && !new_password) {
+        return res.json({ security_question: user.security_question });
+    }
+    // Verify security answer
+    if (!security_answer || !new_password) {
+        return res.status(400).json({ error: 'Security answer and new password are required' });
+    }
+    const passwordError = validatePassword(new_password);
+    if (passwordError) {
+        return res.status(400).json({ error: passwordError });
+    }
+    const answerValid = await bcryptjs_1.default.compare(security_answer.trim().toLowerCase(), user.security_answer_hash);
+    if (!answerValid) {
+        return res.status(401).json({ error: 'Security answer is incorrect' });
+    }
+    const salt = await bcryptjs_1.default.genSalt(10);
+    const password_hash = await bcryptjs_1.default.hash(new_password, salt);
+    (0, db_1.runQuery)('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash, user.id]);
+    res.json({ message: 'Password reset successfully. You can now login with your new password.' });
+});
+/**
+ * GET /api/auth/status - Check if setup is needed (no auth required)
+ */
+router.get('/status', (_req, res) => {
+    const users = (0, db_1.queryAll)('SELECT id FROM users LIMIT 1');
+    res.json({ setup_required: users.length === 0 });
+});
+/**
+ * POST /api/auth/logout - Invalidate current token (PCI DSS 8.1.5)
+ */
+router.post('/logout', auth_1.authMiddleware, (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+        const token = authHeader.slice(7);
+        (0, auth_1.blacklistToken)(token);
+        (0, auth_1.auditLog)('LOGOUT', { userId: req.user.userId, ip: req.ip });
+    }
+    res.json({ message: 'Logged out successfully' });
+});
+// ===== User Management (Owner only) =====
+/**
+ * GET /api/auth/users - List all users (owner only)
+ */
+router.get('/users', auth_1.authMiddleware, (0, auth_1.requireRole)('owner'), (_req, res) => {
+    const users = (0, db_1.queryAll)('SELECT id, username, role, is_active, last_login, created_at FROM users ORDER BY created_at');
+    res.json(users);
+});
+/**
+ * POST /api/auth/users - Create a new user (owner only)
+ */
+router.post('/users', auth_1.authMiddleware, (0, auth_1.requireRole)('owner'), async (req, res) => {
+    const { username, password, role, security_question, security_answer } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required' });
+    }
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+        return res.status(400).json({ error: passwordError });
+    }
+    if (!['owner', 'manager'].includes(role)) {
+        return res.status(400).json({ error: 'Role must be owner or manager' });
+    }
+    // Check if username already exists
+    const existing = (0, db_1.queryOne)('SELECT id FROM users WHERE username = ?', [username.trim().toLowerCase()]);
+    if (existing) {
+        return res.status(409).json({ error: 'Username already exists' });
+    }
+    const salt = await bcryptjs_1.default.genSalt(10);
+    const password_hash = await bcryptjs_1.default.hash(password, salt);
+    const answer_hash = security_answer
+        ? await bcryptjs_1.default.hash(security_answer.trim().toLowerCase(), salt)
+        : '';
+    const result = (0, db_1.runQuery)(`INSERT INTO users (username, password_hash, role, security_question, security_answer_hash, is_active)
+     VALUES (?, ?, ?, ?, ?, 1)`, [username.trim().toLowerCase(), password_hash, role, security_question?.trim() || '', answer_hash]);
+    res.status(201).json({
+        message: 'User created',
+        user: { id: result.lastInsertRowid, username: username.trim().toLowerCase(), role }
+    });
+});
+/**
+ * PUT /api/auth/users/:id - Update user (owner only)
+ */
+router.put('/users/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('owner'), async (req, res) => {
+    const { role, is_active, password } = req.body;
+    const userId = parseInt(req.params.id);
+    const user = (0, db_1.queryOne)('SELECT * FROM users WHERE id = ?', [userId]);
+    if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+    }
+    if (role && ['owner', 'manager'].includes(role)) {
+        (0, db_1.runQuery)('UPDATE users SET role = ? WHERE id = ?', [role, userId]);
+    }
+    if (is_active !== undefined) {
+        (0, db_1.runQuery)('UPDATE users SET is_active = ? WHERE id = ?', [is_active ? 1 : 0, userId]);
+    }
+    if (password && password.length >= 4) {
+        const salt = await bcryptjs_1.default.genSalt(10);
+        const password_hash = await bcryptjs_1.default.hash(password, salt);
+        (0, db_1.runQuery)('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash, userId]);
+    }
+    res.json({ message: 'User updated' });
+});
+/**
+ * DELETE /api/auth/users/:id - Delete user (owner only, cannot delete self)
+ */
+router.delete('/users/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('owner'), (req, res) => {
+    const userId = parseInt(req.params.id);
+    const authUser = req.user;
+    if (userId === authUser.userId) {
+        return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+    const user = (0, db_1.queryOne)('SELECT * FROM users WHERE id = ?', [userId]);
+    if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+    }
+    (0, db_1.runQuery)('DELETE FROM users WHERE id = ?', [userId]);
+    res.json({ message: 'User deleted' });
+});
+// ===== PCI DSS 10.2: Audit Log Access (Owner only) =====
+/**
+ * GET /api/auth/audit-log - Query audit log entries (owner only)
+ * Supports: ?from=ISO_DATE&to=ISO_DATE&event=EVENT_TYPE&limit=100
+ */
+router.get('/audit-log', auth_1.authMiddleware, (0, auth_1.requireRole)('owner'), (req, res) => {
+    const { from, to, event, limit } = req.query;
+    let query = 'SELECT * FROM audit_log';
+    const conditions = [];
+    const params = [];
+    if (from && typeof from === 'string') {
+        conditions.push('created_at >= ?');
+        params.push(from);
+    }
+    if (to && typeof to === 'string') {
+        conditions.push('created_at <= ?');
+        params.push(to + ' 23:59:59');
+    }
+    if (event && typeof event === 'string') {
+        conditions.push('event = ?');
+        params.push(event);
+    }
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+    }
+    query += ' ORDER BY created_at DESC';
+    query += ` LIMIT ${Math.min(parseInt(limit) || 100, 1000)}`;
+    const logs = (0, db_1.queryAll)(query, params);
+    res.json({ logs, total: logs.length });
+});
+exports.default = router;
+//# sourceMappingURL=auth.js.map

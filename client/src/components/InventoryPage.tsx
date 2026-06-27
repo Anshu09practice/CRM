@@ -22,6 +22,7 @@ export default function InventoryPage() {
   const [deletingItem, setDeletingItem] = useState<Item | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [showBulkUpdate, setShowBulkUpdate] = useState(false);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadItems = useCallback(async () => {
@@ -57,6 +58,17 @@ export default function InventoryPage() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    try {
+      const res = await api.bulkDeleteItems();
+      toast.success(`Deleted ${res.deleted} items`);
+      setShowBulkDelete(false);
+      loadItems();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -66,6 +78,7 @@ export default function InventoryPage() {
             <>
               <button onClick={() => setShowImport(true)} className="btn-secondary text-xs">Import</button>
               <button onClick={() => setShowBulkUpdate(true)} className="btn-secondary text-xs">Bulk Update</button>
+              <button onClick={() => setShowBulkDelete(true)} className="btn-secondary text-xs text-red-600 hover:bg-red-50">Bulk Delete</button>
             </>
           )}
           <button onClick={() => { setEditingItem(null); setShowForm(true); }} className="btn-primary text-xs">
@@ -157,6 +170,21 @@ export default function InventoryPage() {
 
       {showImport && <ImportModal onClose={() => setShowImport(false)} onImported={() => { setShowImport(false); loadItems(); }} />}
       {showBulkUpdate && <BulkUpdateModal onClose={() => setShowBulkUpdate(false)} onUpdated={() => { setShowBulkUpdate(false); loadItems(); }} />}
+
+      {showBulkDelete && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-lg font-semibold text-red-600 mb-2">Delete All Items</h3>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+              This will permanently delete <strong>all {items.length} items</strong> from inventory. This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowBulkDelete(false)} className="btn-secondary text-sm">Cancel</button>
+              <button onClick={handleBulkDelete} className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">Delete All</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -35,8 +35,8 @@ if defined JAVA_HOME (
   -keysize 2048 ^
   -validity 10000 ^
   -alias jj-crm-release ^
-  -storepass changeit ^
-  -keypass changeit ^
+  -storepass jjhome ^
+  -keypass jjhome ^
   -dname "CN=Jalan Jyothi CRM, OU=Engineering, O=Jalan Jyothi, L=Bangalore, ST=Karnataka, C=IN"
 
 if errorlevel 1 (
@@ -52,7 +52,7 @@ echo  Keystore generated successfully!
 echo.
 echo  File: %KEYSTORE_FILE%
 echo  Alias: jj-crm-release
-echo  Default password: changeit (CHANGE THIS!)
+echo  Password: jjhome
 echo.
 echo  To use with build-android.bat:
 echo    set KEYSTORE_PATH=%KEYSTORE_FILE%

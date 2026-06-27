@@ -236,6 +236,11 @@ const serverApi = {
     return handleResponse(res);
   },
 
+  async bulkDeleteItems(): Promise<{ deleted: number }> {
+    const res = await fetch(`${get_API_BASE()}/items/bulk-delete`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
+    return handleResponse(res);
+  },
+
   async importItems(items: Partial<Item>[]): Promise<{ imported: number; errors: string[] }> {
     const res = await fetch(`${get_API_BASE()}/items/import`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },

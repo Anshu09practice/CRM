@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api, isOfflineMode, getApiBase } from '../services/api';
-import { localDb } from '../services/localDb';
+import { localDb, localApi } from '../services/localDb';
 import { toast } from 'react-hot-toast';
 
 export default function ProfilePage() {
@@ -12,6 +12,7 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changing, setChanging] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const [serverUrl, setServerUrl] = useState(() => localStorage.getItem('jj_server_url') || '');
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
@@ -145,6 +146,52 @@ export default function ProfilePage() {
     } finally {
       setBackingUp(false);
     }
+  };
+
+  const handleRestoreBackup = async () => {
+    // Create a file input to pick the JSON file
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (!confirm('⚠️ This will REPLACE all existing data with the backup data. Are you sure you want to continue?')) {
+        return;
+      }
+
+      setRestoring(true);
+      try {
+        const text = await file.text();
+        const backupData = JSON.parse(text);
+
+        // Validate backup format
+        if (!backupData.data && !backupData.tables) {
+          throw new Error('Invalid backup file format. Please select a valid Jalan Jyothi CRM backup JSON file.');
+        }
+
+        if (isOfflineMode()) {
+          // Offline mode: restore to IndexedDB
+          const dataToRestore = backupData.data || backupData.tables;
+          const result = await localApi.restoreBackup(dataToRestore);
+          toast.success(`Restored ${result.restored} records! Refresh the app to see updated data.`, { duration: 5000 });
+        } else {
+          // Online mode: send to server
+          const result = await api.restoreBackup(backupData);
+          toast.success(`${result.message}`, { duration: 5000 });
+        }
+      } catch (err: any) {
+        if (err instanceof SyntaxError) {
+          toast.error('Invalid JSON file. Please select a valid backup file.');
+        } else {
+          toast.error('Restore failed: ' + err.message);
+        }
+      } finally {
+        setRestoring(false);
+      }
+    };
+    input.click();
   };
 
   const handleSaveServerUrl = async () => {
@@ -380,6 +427,36 @@ export default function ProfilePage() {
         </button>
         <p className="text-[11px] text-slate-400 mt-2 px-3">
           Saved to: Documents/Jalan Jyothi/ folder on your device
+        </p>
+
+        {/* Divider */}
+        <div className="border-t border-slate-100 my-2"></div>
+
+        {/* Restore Backup */}
+        <button
+          onClick={handleRestoreBackup}
+          disabled={restoring}
+          className="w-full text-left flex items-center justify-between py-3 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-lg">📂</span>
+            <div>
+              <p className="text-sm font-medium text-slate-900">
+                {restoring ? 'Restoring Data...' : 'Restore Backup'}
+              </p>
+              <p className="text-xs text-slate-500">
+                Import a backup JSON file to restore all data (for migration)
+              </p>
+            </div>
+          </div>
+          {restoring ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600 shrink-0"></div>
+          ) : (
+            <span className="text-slate-400 shrink-0">›</span>
+          )}
+        </button>
+        <p className="text-[11px] text-slate-400 mt-2 px-3">
+          Upload a previously exported JSON backup to restore data on this device
         </p>
       </div>
 

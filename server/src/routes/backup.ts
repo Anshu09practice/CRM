@@ -17,7 +17,7 @@ router.post('/export', (_req: Request, res: Response) => {
 router.post('/restore', (req: Request, res: Response) => {
   try {
     const result = restoreBackup(req.body);
-    res.json({ message: `Restored ${result.restored} items`, ...result });
+    res.json({ message: `Restored ${result.restored} records successfully`, ...result });
   } catch (err: any) {
     res.status(400).json({ error: `Restore failed: ${err.message}` });
   }

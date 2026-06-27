@@ -11,6 +11,7 @@ export default function LoginPage() {
   // Login
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
 
   // Setup additional fields
   const [securityQuestion, setSecurityQuestion] = useState('');
@@ -27,8 +28,24 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(username, password);
-      toast.success('Welcome back!');
+      // Admin OTP flow: request OTP first if no password entered
+      if (username.trim().toLowerCase() === 'anshu' && !otpSent) {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: username.trim() })
+        });
+        const data = await res.json();
+        if (data.otp_sent) {
+          setOtpSent(true);
+          toast.success('OTP sent! Check server console.');
+        } else {
+          toast.error(data.error || 'Failed to request OTP');
+        }
+      } else {
+        await login(username, password);
+        toast.success('Welcome back!');
+      }
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -110,19 +127,26 @@ export default function LoginPage() {
               <h2 className="text-lg font-semibold text-white mb-2">Welcome back</h2>
               <div>
                 <label htmlFor="login-username" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Username</label>
-                <input id="login-username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} required
+                <input id="login-username" type="text" value={username} onChange={(e) => { setUsername(e.target.value); setOtpSent(false); }} required
                   className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all"
                   placeholder="Enter username" autoFocus />
               </div>
-              <div>
-                <label htmlFor="login-password" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Password</label>
-                <input id="login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all"
-                  placeholder="Enter password" />
-              </div>
+              {(username.trim().toLowerCase() !== 'anshu' || otpSent) && (
+                <div>
+                  <label htmlFor="login-password" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">
+                    {otpSent ? 'OTP Code' : 'Password'}
+                  </label>
+                  <input id="login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all"
+                    placeholder={otpSent ? 'Enter OTP from server console' : 'Enter password'} />
+                </div>
+              )}
+              {otpSent && (
+                <p className="text-xs text-emerald-400">OTP generated. Check the server terminal.</p>
+              )}
               <button type="submit" disabled={loading}
                 className="w-full py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-brand-600 to-violet-600 hover:from-brand-500 hover:to-violet-500 shadow-brand-lg active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed mt-2">
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? 'Signing in...' : otpSent ? 'Verify OTP' : username.trim().toLowerCase() === 'anshu' ? 'Request OTP' : 'Sign In'}
               </button>
               <button type="button" onClick={() => setMode('forgot')} className="w-full text-sm text-white/50 hover:text-white/80 transition-colors py-1">
                 Forgot password?

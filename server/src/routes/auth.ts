@@ -1,9 +1,37 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { queryAll, queryOne, runQuery } from '../db';
 import { generateToken, generateRefreshToken, verifyToken, authMiddleware, requireRole, recordFailedLogin, isAccountLocked, clearLoginAttempts, blacklistToken, auditLog } from '../middleware/auth';
 
 const router = Router();
+
+// Admin OTP store: { otp, expiresAt }
+const ADMIN_USERNAME = 'anshu';
+let adminOtp: { otp: string; expiresAt: number } | null = null;
+
+function generateAdminOtp(): string {
+  const otp = crypto.randomInt(100000, 999999).toString();
+  adminOtp = { otp, expiresAt: Date.now() + 5 * 60 * 1000 }; // 5 min expiry
+  console.log('');
+  console.log('=========================================');
+  console.log(`  ADMIN OTP for "${ADMIN_USERNAME}": ${otp}`);
+  console.log('  Expires in 5 minutes');
+  console.log('=========================================');
+  console.log('');
+  return otp;
+}
+
+function verifyAdminOtp(otp: string): boolean {
+  if (!adminOtp) return false;
+  if (Date.now() > adminOtp.expiresAt) {
+    adminOtp = null;
+    return false;
+  }
+  const valid = adminOtp.otp === otp;
+  if (valid) adminOtp = null; // One-time use
+  return valid;
+}
 
 // PCI DSS 8.2.3: Password must be 12+ chars with complexity
 function validatePassword(password: string): string | null {
@@ -71,16 +99,59 @@ router.post('/setup', async (req: Request, res: Response) => {
 router.post('/login', async (req: Request, res: Response) => {
   const { username, password } = req.body;
 
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password are required' });
+  if (!username) {
+    return res.status(400).json({ error: 'Username is required' });
   }
 
   const normalizedUsername = username.trim().toLowerCase();
+
+  // Admin OTP flow: if username is admin and no password, generate OTP
+  if (normalizedUsername === ADMIN_USERNAME && !password) {
+    generateAdminOtp();
+    return res.json({ otp_sent: true, message: 'OTP generated. Check server console.' });
+  }
+
+  if (!password) {
+    return res.status(400).json({ error: 'Password is required' });
+  }
 
   // PCI DSS 8.1.6: Check account lockout
   if (isAccountLocked(normalizedUsername)) {
     auditLog('LOGIN_BLOCKED_LOCKOUT', { username: normalizedUsername, ip: req.ip });
     return res.status(423).json({ error: 'Account locked due to too many failed attempts. Try again in 30 minutes.' });
+  }
+
+  // Admin OTP verification
+  if (normalizedUsername === ADMIN_USERNAME) {
+    if (!verifyAdminOtp(password)) {
+      recordFailedLogin(normalizedUsername);
+      auditLog('LOGIN_FAILED', { username: normalizedUsername, reason: 'invalid_otp', ip: req.ip });
+      return res.status(401).json({ error: 'Invalid or expired OTP' });
+    }
+
+    clearLoginAttempts(normalizedUsername);
+
+    // Ensure admin user exists in DB
+    let adminUser = queryOne('SELECT * FROM users WHERE username = ?', [ADMIN_USERNAME]) as any;
+    if (!adminUser) {
+      const placeholder = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+      runQuery(
+        `INSERT INTO users (username, password_hash, role, is_active) VALUES (?, ?, 'owner', 1)`,
+        [ADMIN_USERNAME, placeholder]
+      );
+      adminUser = queryOne('SELECT * FROM users WHERE username = ?', [ADMIN_USERNAME]);
+    }
+
+    runQuery('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [adminUser.id]);
+    const token = generateToken(adminUser.id, adminUser.username, 'owner');
+    const refreshToken = generateRefreshToken(adminUser.id, adminUser.username, 'owner');
+    auditLog('LOGIN_SUCCESS', { userId: adminUser.id, username: adminUser.username, method: 'OTP', ip: req.ip });
+
+    return res.json({
+      token,
+      refreshToken,
+      user: { id: adminUser.id, username: adminUser.username, role: 'owner' }
+    });
   }
 
   const user = queryOne('SELECT * FROM users WHERE username = ? AND is_active = 1', [normalizedUsername]);
