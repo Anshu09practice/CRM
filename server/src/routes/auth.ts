@@ -1,16 +1,17 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { queryAll, queryOne, runQuery } from '../db';
-import { generateToken, generateRefreshToken, verifyToken, authMiddleware, requireRole } from '../middleware/auth';
+import { generateToken, generateRefreshToken, verifyToken, authMiddleware, requireRole, recordFailedLogin, isAccountLocked, clearLoginAttempts, blacklistToken, auditLog } from '../middleware/auth';
 
 const router = Router();
 
-// Password validation helper
+// PCI DSS 8.2.3: Password must be 12+ chars with complexity
 function validatePassword(password: string): string | null {
-  if (password.length < 8) return 'Password must be at least 8 characters';
+  if (password.length < 12) return 'Password must be at least 12 characters';
   if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
   if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter';
   if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return 'Password must contain at least one special character';
   return null;
 }
 
@@ -64,6 +65,8 @@ router.post('/setup', async (req: Request, res: Response) => {
 
 /**
  * POST /api/auth/login - Login with username and password
+ * PCI DSS 8.1.6: Account lockout after 6 failed attempts
+ * PCI DSS 10.2: Audit logging for all auth events
  */
 router.post('/login', async (req: Request, res: Response) => {
   const { username, password } = req.body;
@@ -72,21 +75,38 @@ router.post('/login', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Username and password are required' });
   }
 
-  const user = queryOne('SELECT * FROM users WHERE username = ? AND is_active = 1', [username.trim().toLowerCase()]);
+  const normalizedUsername = username.trim().toLowerCase();
+
+  // PCI DSS 8.1.6: Check account lockout
+  if (isAccountLocked(normalizedUsername)) {
+    auditLog('LOGIN_BLOCKED_LOCKOUT', { username: normalizedUsername, ip: req.ip });
+    return res.status(423).json({ error: 'Account locked due to too many failed attempts. Try again in 30 minutes.' });
+  }
+
+  const user = queryOne('SELECT * FROM users WHERE username = ? AND is_active = 1', [normalizedUsername]);
   if (!user) {
+    recordFailedLogin(normalizedUsername);
+    auditLog('LOGIN_FAILED', { username: normalizedUsername, reason: 'user_not_found', ip: req.ip });
     return res.status(401).json({ error: 'Invalid username or password' });
   }
 
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) {
+    recordFailedLogin(normalizedUsername);
+    auditLog('LOGIN_FAILED', { username: normalizedUsername, reason: 'invalid_password', ip: req.ip });
     return res.status(401).json({ error: 'Invalid username or password' });
   }
+
+  // Success — clear lockout counter
+  clearLoginAttempts(normalizedUsername);
 
   // Update last login
   runQuery('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
 
   const token = generateToken(user.id, user.username, user.role);
   const refreshToken = generateRefreshToken(user.id, user.username, user.role);
+
+  auditLog('LOGIN_SUCCESS', { userId: user.id, username: user.username, ip: req.ip });
 
   res.json({
     token,
@@ -213,6 +233,19 @@ router.get('/status', (_req: Request, res: Response) => {
   res.json({ setup_required: users.length === 0 });
 });
 
+/**
+ * POST /api/auth/logout - Invalidate current token (PCI DSS 8.1.5)
+ */
+router.post('/logout', authMiddleware, (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const token = authHeader.slice(7);
+    blacklistToken(token);
+    auditLog('LOGOUT', { userId: (req as any).user.userId, ip: req.ip });
+  }
+  res.json({ message: 'Logged out successfully' });
+});
+
 // ===== User Management (Owner only) =====
 
 /**
@@ -313,6 +346,42 @@ router.delete('/users/:id', authMiddleware, requireRole('owner'), (req: Request,
 
   runQuery('DELETE FROM users WHERE id = ?', [userId]);
   res.json({ message: 'User deleted' });
+});
+
+// ===== PCI DSS 10.2: Audit Log Access (Owner only) =====
+
+/**
+ * GET /api/auth/audit-log - Query audit log entries (owner only)
+ * Supports: ?from=ISO_DATE&to=ISO_DATE&event=EVENT_TYPE&limit=100
+ */
+router.get('/audit-log', authMiddleware, requireRole('owner'), (req: Request, res: Response) => {
+  const { from, to, event, limit } = req.query;
+
+  let query = 'SELECT * FROM audit_log';
+  const conditions: string[] = [];
+  const params: any[] = [];
+
+  if (from && typeof from === 'string') {
+    conditions.push('created_at >= ?');
+    params.push(from);
+  }
+  if (to && typeof to === 'string') {
+    conditions.push('created_at <= ?');
+    params.push(to + ' 23:59:59');
+  }
+  if (event && typeof event === 'string') {
+    conditions.push('event = ?');
+    params.push(event);
+  }
+
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+  query += ' ORDER BY created_at DESC';
+  query += ` LIMIT ${Math.min(parseInt(limit as string) || 100, 1000)}`;
+
+  const logs = queryAll(query, params);
+  res.json({ logs, total: logs.length });
 });
 
 export default router;

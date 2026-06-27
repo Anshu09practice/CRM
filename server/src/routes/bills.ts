@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { queryAll, queryOne, runQuery, runTransaction } from '../db';
 import { notifyBillCreated, notifyStockUpdate, notifyPaymentReceived } from '../services/realtime';
+import { auditLog } from '../middleware/auth';
+import crypto from 'crypto';
 
 const router = Router();
 
@@ -200,16 +202,19 @@ router.post('/', (req: Request, res: Response) => {
   let newBill: any;
   let billItems: any[];
 
+  // ISO 20022: Generate Unique End-to-End Transaction Reference (UETR)
+  const transactionRef = crypto.randomUUID();
+
   runTransaction(() => {
-    // Insert bill
+    // Insert bill with ISO 20022 transaction reference
     const result = runQuery(
       `INSERT INTO bills (bill_number, customer_name, customer_phone, customer_address, customer_id,
         subtotal, discount_percent, discount_amount, tax_percent, cgst_amount, sgst_amount, tax_total,
-        total, payment_status, amount_paid, bill_date, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        total, payment_status, amount_paid, bill_date, notes, transaction_ref, currency_code)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'INR')`,
       [billNumber, customer_name.trim(), customer_phone || '', customer_address || '', resolvedCustomerId || null,
         subtotal, discount, discountAmount, tax, cgst, sgst, taxTotal,
-        total, paymentStatus, paid, date, notes || '']
+        total, paymentStatus, paid, date, notes || '', transactionRef]
     );
 
     const billId = result.lastInsertRowid;
@@ -246,6 +251,17 @@ router.post('/', (req: Request, res: Response) => {
   // Emit real-time notifications
   const user = (req as any).user;
   if (newBill) {
+    // PCI DSS 10.2: Audit log financial transaction
+    auditLog('BILL_CREATED', {
+      userId: user.userId,
+      username: user.username,
+      billNumber: newBill.bill_number,
+      transactionRef,
+      total: newBill.total,
+      currency: 'INR',
+      ip: req.ip
+    });
+
     notifyBillCreated(newBill.id, newBill.bill_number, newBill.total, customer_name, user.userId, user.username);
     // Notify stock updates for each item
     for (const vi of validatedItems) {
@@ -398,6 +414,21 @@ router.post('/:id/payment', (req: Request, res: Response) => {
 
   const updatedBill = queryOne('SELECT * FROM bills WHERE id = ?', [bill.id]);
   const payments = queryAll('SELECT * FROM payments WHERE bill_id = ?', [bill.id]);
+
+  // PCI DSS 10.2: Audit log payment
+  const user = (req as any).user;
+  auditLog('PAYMENT_RECORDED', {
+    userId: user.userId,
+    username: user.username,
+    billId: bill.id,
+    billNumber: bill.bill_number,
+    transactionRef: bill.transaction_ref,
+    amount,
+    paymentMethod: payment_method || 'cash',
+    currency: 'INR',
+    ip: req.ip
+  });
+
   res.json({ ...updatedBill, payments });
 });
 
@@ -436,6 +467,95 @@ router.delete('/:id', (req: Request, res: Response) => {
   });
 
   res.json({ message: 'Bill deleted successfully' });
+});
+
+// GET /api/bills/:id/iso20022 - Export bill as ISO 20022 payment message
+router.get('/:id/iso20022', (req: Request, res: Response) => {
+  const bill = queryOne('SELECT * FROM bills WHERE id = ?', [req.params.id]);
+  if (!bill) {
+    return res.status(404).json({ error: 'Bill not found' });
+  }
+
+  const iso20022Message = {
+    messageId: `MSG-${bill.id}-${Date.now()}`,
+    creationDateTime: new Date().toISOString(),
+    transactionReference: bill.transaction_ref || crypto.randomUUID(),
+    numberOfTransactions: 1,
+    paymentInformation: {
+      paymentInformationId: bill.bill_number,
+      paymentMethod: 'TRF',
+      debtorParty: {
+        name: bill.customer_name,
+        postalAddress: bill.customer_address ? {
+          streetName: bill.customer_address,
+          country: 'IN'
+        } : undefined,
+        contactDetails: bill.customer_phone ? {
+          phoneNumber: bill.customer_phone
+        } : undefined
+      },
+      creditorParty: {
+        name: 'Jalan Jyothi',
+        postalAddress: { country: 'IN' }
+      },
+      instructedAmount: {
+        value: bill.total,
+        currency: bill.currency_code || 'INR'
+      },
+      remittanceInformation: {
+        unstructured: bill.notes || undefined,
+        structured: {
+          referredDocumentType: 'CINV',
+          referredDocumentNumber: bill.bill_number,
+          referredDocumentDate: bill.bill_date
+        }
+      },
+      paymentStatus: bill.payment_status === 'paid' ? 'ACSC'
+        : bill.payment_status === 'partial' ? 'ACSP' : 'PDNG',
+      amountPaid: bill.amount_paid,
+      amountRemaining: bill.total - bill.amount_paid
+    }
+  };
+
+  res.json(iso20022Message);
+});
+
+// GET /api/bills/export/iso20022 - Bulk export all bills as ISO 20022 messages
+router.get('/export/iso20022', (req: Request, res: Response) => {
+  const { from_date, to_date } = req.query;
+  let query = 'SELECT * FROM bills';
+  const conditions: string[] = [];
+  const params: any[] = [];
+
+  if (from_date && typeof from_date === 'string') {
+    conditions.push('bill_date >= ?');
+    params.push(from_date);
+  }
+  if (to_date && typeof to_date === 'string') {
+    conditions.push('bill_date <= ?');
+    params.push(to_date);
+  }
+  if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
+  query += ' ORDER BY bill_date DESC';
+
+  const bills = queryAll(query, params);
+  const messages = bills.map((bill: any) => ({
+    transactionReference: bill.transaction_ref || `LEGACY-${bill.id}`,
+    billNumber: bill.bill_number,
+    date: bill.bill_date,
+    debtorName: bill.customer_name,
+    instructedAmount: { value: bill.total, currency: bill.currency_code || 'INR' },
+    paymentStatus: bill.payment_status === 'paid' ? 'ACSC'
+      : bill.payment_status === 'partial' ? 'ACSP' : 'PDNG',
+    amountPaid: bill.amount_paid
+  }));
+
+  res.json({
+    messageId: `BULK-${Date.now()}`,
+    creationDateTime: new Date().toISOString(),
+    numberOfTransactions: messages.length,
+    transactions: messages
+  });
 });
 
 export default router;

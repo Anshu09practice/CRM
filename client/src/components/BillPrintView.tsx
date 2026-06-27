@@ -1,4 +1,5 @@
 import { Bill } from '../services/api';
+import { createPaymentMessage, formatISO4217, toISO20022Status } from '../services/iso20022';
 
 interface BillPrintViewProps {
   bill: Bill;
@@ -44,6 +45,7 @@ function generateBillHtml(bill: Bill): string {
     <div>
       <p style="margin:2px 0;"><strong>Bill No:</strong> ${bill.bill_number}</p>
       <p style="margin:2px 0;"><strong>Date:</strong> ${bill.bill_date}</p>
+      ${bill.transaction_ref ? `<p style="margin:2px 0;font-size:11px;color:#64748b;"><strong>Txn Ref:</strong> ${bill.transaction_ref}</p>` : ''}
     </div>
     <div style="text-align:right;">
       <p style="margin:2px 0;"><strong>Customer:</strong> ${bill.customer_name}</p>
@@ -173,6 +175,9 @@ export default function BillPrintView({ bill, onClose }: BillPrintViewProps) {
             <div>
               <p><strong>Bill No:</strong> {bill.bill_number}</p>
               <p><strong>Date:</strong> {bill.bill_date}</p>
+              {bill.transaction_ref && (
+                <p className="text-xs text-slate-500"><strong>Txn Ref:</strong> {bill.transaction_ref}</p>
+              )}
             </div>
             <div className="text-right">
               <p><strong>Customer:</strong> {bill.customer_name}</p>
@@ -233,6 +238,14 @@ export default function BillPrintView({ bill, onClose }: BillPrintViewProps) {
           {bill.notes && (
             <div className="mt-4 text-xs text-slate-600 italic">
               Note: {bill.notes}
+            </div>
+          )}
+
+          {/* ISO 20022 Compliance Footer */}
+          {bill.transaction_ref && (
+            <div className="mt-4 text-xs text-slate-400 border-t border-dashed border-slate-200 pt-2">
+              <p>Transaction Reference (UETR): {bill.transaction_ref}</p>
+              <p>Currency: {bill.currency_code || 'INR'} (ISO 4217) | Status: {toISO20022Status(bill.payment_status)}</p>
             </div>
           )}
 

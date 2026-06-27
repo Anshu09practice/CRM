@@ -1,7 +1,19 @@
 import { Router, Request, Response } from 'express';
 import { queryAll, queryOne, runQuery } from '../db';
+import { encryptPII, decryptPII } from '../services/crypto';
 
 const router = Router();
+
+// Helper: decrypt PII fields in a customer record
+function decryptCustomer(customer: any): any {
+  if (!customer) return customer;
+  return {
+    ...customer,
+    phone: decryptPII(customer.phone || ''),
+    address: decryptPII(customer.address || ''),
+    notes: decryptPII(customer.notes || '')
+  };
+}
 
 // GET /api/customers - List customers with optional search
 router.get('/', (req: Request, res: Response) => {
@@ -10,13 +22,22 @@ router.get('/', (req: Request, res: Response) => {
   let query = 'SELECT * FROM customers';
   const params: any[] = [];
 
+  // Note: search on encrypted fields requires decrypting all records
+  // For large datasets, consider a search index with tokenized/hashed values
+  query += ' ORDER BY name';
+  let customers = queryAll(query, params);
+
+  // Decrypt PII fields
+  customers = customers.map(decryptCustomer);
+
+  // Filter after decryption (required because encrypted values can't be LIKE-searched)
   if (search && typeof search === 'string') {
-    query += ' WHERE name LIKE ? OR phone LIKE ?';
-    params.push(`%${search}%`, `%${search}%`);
+    const s = search.toLowerCase();
+    customers = customers.filter((c: any) =>
+      c.name.toLowerCase().includes(s) || (c.phone || '').includes(s)
+    );
   }
 
-  query += ' ORDER BY name';
-  const customers = queryAll(query, params);
   res.json(customers);
 });
 
@@ -37,7 +58,8 @@ router.get('/:id', (req: Request, res: Response) => {
   const totalSpent = bills.reduce((sum: number, b: any) => sum + (b.total || 0), 0);
   const totalPaid = bills.reduce((sum: number, b: any) => sum + (b.amount_paid || 0), 0);
 
-  res.json({ ...customer, bills, totalSpent, totalPaid });
+  // Decrypt PII before returning
+  res.json({ ...decryptCustomer(customer), bills, totalSpent, totalPaid });
 });
 
 // POST /api/customers - Create customer
@@ -48,29 +70,34 @@ router.post('/', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Customer name is required' });
   }
 
-  // Enforce uniqueness: no two customers with same name AND phone
+  // Enforce uniqueness: check against decrypted phones
   if (phone && phone.trim()) {
-    const existing = queryOne(
-      'SELECT * FROM customers WHERE LOWER(name) = LOWER(?) AND phone = ?',
-      [name.trim(), phone.trim()]
+    const allCustomers = queryAll('SELECT id, name, phone FROM customers', []);
+    const existingByNamePhone = allCustomers.find((c: any) =>
+      c.name.toLowerCase() === name.trim().toLowerCase() &&
+      decryptPII(c.phone) === phone.trim()
     );
-    if (existing) {
+    if (existingByNamePhone) {
       return res.status(409).json({ error: 'A customer with this name and phone number already exists' });
     }
-    // Also prevent duplicate phone numbers entirely
-    const phoneExists = queryOne('SELECT * FROM customers WHERE phone = ?', [phone.trim()]);
+    const phoneExists = allCustomers.find((c: any) => decryptPII(c.phone) === phone.trim());
     if (phoneExists) {
       return res.status(409).json({ error: `Phone number already registered to "${phoneExists.name}". Each customer must have a unique phone number.` });
     }
   }
 
+  // PCI DSS 3.4: Encrypt PII before storing
+  const encPhone = encryptPII((phone || '').trim());
+  const encAddress = encryptPII(address || '');
+  const encNotes = encryptPII(notes || '');
+
   const result = runQuery(
     'INSERT INTO customers (name, phone, address, notes) VALUES (?, ?, ?, ?)',
-    [name.trim(), (phone || '').trim(), address || '', notes || '']
+    [name.trim(), encPhone, encAddress, encNotes]
   );
 
   const customer = queryOne('SELECT * FROM customers WHERE id = ?', [result.lastInsertRowid]);
-  res.status(201).json(customer);
+  res.status(201).json(decryptCustomer(customer));
 });
 
 // PUT /api/customers/:id - Update customer
@@ -87,19 +114,25 @@ router.put('/:id', (req: Request, res: Response) => {
 
   // Enforce phone uniqueness (excluding current customer)
   if (phone && phone.trim()) {
-    const phoneConflict = queryOne('SELECT * FROM customers WHERE phone = ? AND id != ?', [phone.trim(), req.params.id]);
+    const allCustomers = queryAll('SELECT id, name, phone FROM customers WHERE id != ?', [req.params.id]);
+    const phoneConflict = allCustomers.find((c: any) => decryptPII(c.phone) === phone.trim());
     if (phoneConflict) {
       return res.status(409).json({ error: `Phone number already registered to "${phoneConflict.name}". Each customer must have a unique phone number.` });
     }
   }
 
+  // PCI DSS 3.4: Encrypt PII before storing
+  const encPhone = encryptPII((phone || '').trim());
+  const encAddress = encryptPII(address || '');
+  const encNotes = encryptPII(notes || '');
+
   runQuery(
     `UPDATE customers SET name = ?, phone = ?, address = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-    [name.trim(), (phone || '').trim(), address || '', notes || '', req.params.id]
+    [name.trim(), encPhone, encAddress, encNotes, req.params.id]
   );
 
   const updated = queryOne('SELECT * FROM customers WHERE id = ?', [req.params.id]);
-  res.json(updated);
+  res.json(decryptCustomer(updated));
 });
 
 // DELETE /api/customers/:id - Delete customer

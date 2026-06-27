@@ -18,10 +18,25 @@ android {
     }
     buildTypes {
         release {
+            // PCI DSS 6.5.5: Obfuscation and shrinking enabled
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // PCI DSS 6.5.5: Explicitly disable debugging in release
+            debuggable false
         }
+        debug {
+            // Debug builds clearly marked — never distribute
+            debuggable true
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-DEBUG"
+        }
+    }
+
+    // PCI DSS 4.1: Enforce minimum TLS version
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 }
 

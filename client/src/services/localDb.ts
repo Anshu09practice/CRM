@@ -1,6 +1,7 @@
 import Dexie, { Table } from 'dexie';
 import ExcelJS from 'exceljs';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { encryptCustomerPII, decryptCustomerPII } from './encryption';
 
 // ===== Database Schema =====
 
@@ -195,12 +196,45 @@ function generateBillNumber(): string {
   return `JJ-${y}${m}${d}-${h}${min}${s}`;
 }
 
+// PCI DSS 8.2.1: Use PBKDF2 with high iteration count (not plain SHA-256)
 async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']
+  );
+  const derivedBits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' },
+    keyMaterial, 256
+  );
+  const hashArray = Array.from(new Uint8Array(derivedBits));
+  const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return `pbkdf2:310000:${saltHex}:${hashHex}`;
+}
+
+async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  if (storedHash.startsWith('pbkdf2:')) {
+    const [, iterations, saltHex, expectedHash] = storedHash.split(':');
+    const salt = new Uint8Array(saltHex.match(/.{2}/g)!.map(b => parseInt(b, 16)));
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']
+    );
+    const derivedBits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt, iterations: parseInt(iterations), hash: 'SHA-256' },
+      keyMaterial, 256
+    );
+    const hashHex = Array.from(new Uint8Array(derivedBits)).map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex === expectedHash;
+  }
+  // Legacy SHA-256 fallback for existing accounts (will be upgraded on next login)
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const legacyHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return legacyHash === storedHash;
 }
 
 // ===== Local API Implementation =====
@@ -417,44 +451,67 @@ export const localApi = {
   // ===== Customers =====
   async getCustomers(search?: string) {
     let customers = await localDb.customers.toArray();
+    // PCI DSS 3.4: Decrypt PII fields after retrieval
+    const decrypted = await Promise.all(customers.map(async c => {
+      const d = await decryptCustomerPII(c);
+      return { ...c, ...d };
+    }));
     if (search) {
       const s = search.toLowerCase();
-      customers = customers.filter(c =>
+      return decrypted.filter(c =>
         c.name.toLowerCase().includes(s) ||
         c.phone.includes(s)
       );
     }
-    return customers;
+    return decrypted;
   },
 
   async getCustomer(id: number) {
     const customer = await localDb.customers.get(id);
     if (!customer) throw new Error('Customer not found');
+    // PCI DSS 3.4: Decrypt PII
+    const decrypted = await decryptCustomerPII(customer);
+    const decryptedCustomer = { ...customer, ...decrypted };
     const bills = await localDb.bills.where('customer_id').equals(id).toArray();
     const totalSpent = bills.reduce((sum, b) => sum + b.total, 0);
     const totalPaid = bills.reduce((sum, b) => sum + b.amount_paid, 0);
-    return { ...customer, bills, totalSpent, totalPaid };
+    return { ...decryptedCustomer, bills, totalSpent, totalPaid };
   },
 
   async createCustomer(data: { name: string; phone?: string; address?: string; notes?: string }) {
-    const customer: LocalCustomer = {
-      name: data.name,
+    // PCI DSS 3.4: Encrypt PII before storage
+    const encrypted = await encryptCustomerPII({
       phone: data.phone || '',
       address: data.address || '',
+      notes: data.notes || ''
+    });
+    const customer: LocalCustomer = {
+      name: data.name,
+      phone: encrypted.phone || '',
+      address: encrypted.address || '',
       credit_balance: 0,
-      notes: data.notes || '',
+      notes: encrypted.notes || '',
       created_at: now(),
       updated_at: now()
     };
     const id = await localDb.customers.add(customer);
-    return { ...customer, id };
+    // Return decrypted for display
+    return { ...customer, phone: data.phone || '', address: data.address || '', notes: data.notes || '', id };
   },
 
   async updateCustomer(id: number, data: { name: string; phone?: string; address?: string; notes?: string }) {
-    await localDb.customers.update(id, { ...data, updated_at: now() });
+    // PCI DSS 3.4: Encrypt PII before storage
+    const encrypted = await encryptCustomerPII({
+      phone: data.phone,
+      address: data.address,
+      notes: data.notes
+    });
+    await localDb.customers.update(id, { name: data.name, ...encrypted, updated_at: now() });
     const customer = await localDb.customers.get(id);
     if (!customer) throw new Error('Customer not found');
-    return customer;
+    // Return decrypted
+    const decrypted = await decryptCustomerPII(customer);
+    return { ...customer, ...decrypted };
   },
 
   async deleteCustomer(id: number) {
@@ -1062,9 +1119,15 @@ export const localApi = {
   async login(username: string, password: string) {
     const user = await localDb.users.where('username').equals(username).first();
     if (!user) throw new Error('Invalid credentials');
-    const hash = await hashPassword(password);
-    if (user.password_hash !== hash) throw new Error('Invalid credentials');
+    const valid = await verifyPassword(password, user.password_hash);
+    if (!valid) throw new Error('Invalid credentials');
     if (!user.is_active) throw new Error('Account is disabled');
+
+    // Upgrade legacy SHA-256 hash to PBKDF2 on successful login
+    if (!user.password_hash.startsWith('pbkdf2:')) {
+      const upgradedHash = await hashPassword(password);
+      await localDb.users.update(user.id!, { password_hash: upgradedHash });
+    }
 
     await localDb.users.update(user.id!, { last_login: now() });
     return { token: 'local-token', refreshToken: 'local-refresh', user: { id: user.id!, username: user.username, role: user.role } };
@@ -1113,11 +1176,16 @@ export const localApi = {
 
   async changePassword(current_password: string, new_password: string) {
     const users = await localDb.users.toArray();
-    const currentHash = await hashPassword(current_password);
-    const user = users.find(u => u.password_hash === currentHash);
-    if (!user) throw new Error('Current password is incorrect');
+    let matchedUser = null;
+    for (const u of users) {
+      if (await verifyPassword(current_password, u.password_hash)) {
+        matchedUser = u;
+        break;
+      }
+    }
+    if (!matchedUser) throw new Error('Current password is incorrect');
     const newHash = await hashPassword(new_password);
-    await localDb.users.update(user.id!, { password_hash: newHash });
+    await localDb.users.update(matchedUser.id!, { password_hash: newHash });
     return { success: true };
   },
 
@@ -1129,8 +1197,8 @@ export const localApi = {
       return { security_question: user.security_question };
     }
 
-    const answerHash = await hashPassword(security_answer.toLowerCase().trim());
-    if (user.security_answer_hash !== answerHash) {
+    const answerValid = await verifyPassword(security_answer.toLowerCase().trim(), user.security_answer_hash);
+    if (!answerValid) {
       throw new Error('Security answer is incorrect');
     }
 

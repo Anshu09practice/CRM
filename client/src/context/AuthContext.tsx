@@ -1,6 +1,9 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { isOfflineMode } from '../services/api';
 import { localApi } from '../services/localDb';
+
+// PCI DSS 8.1.8: Session inactivity timeout (15 minutes)
+const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
 
 interface User {
   id: number;
@@ -32,6 +35,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const [setupRequired, setSetupRequired] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // PCI DSS 8.1.8: Reset inactivity timer on user interaction
+  const resetInactivityTimer = useCallback(() => {
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    inactivityTimerRef.current = setTimeout(() => {
+      if (token) {
+        logout();
+        alert('Session expired due to inactivity. Please log in again.');
+      }
+    }, SESSION_TIMEOUT_MS);
+  }, [token]);
+
+  useEffect(() => {
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    const handler = () => resetInactivityTimer();
+    events.forEach(e => document.addEventListener(e, handler, { passive: true }));
+    resetInactivityTimer();
+    return () => {
+      events.forEach(e => document.removeEventListener(e, handler));
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    };
+  }, [resetInactivityTimer]);
 
   const refreshAccessToken = useCallback(async () => {
     const refreshToken = localStorage.getItem('jj_refresh_token');
@@ -59,12 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkStatus();
   }, []);
 
-  // Auto-refresh token before expiry (every 20 hours)
+  // Auto-refresh token before expiry (every 50 minutes — token expires in 1h)
   useEffect(() => {
     if (!token) return;
     const interval = setInterval(() => {
       refreshAccessToken();
-    }, 20 * 60 * 60 * 1000);
+    }, 50 * 60 * 1000); // 50 minutes
     return () => clearInterval(interval);
   }, [token, refreshAccessToken]);
 
@@ -80,6 +106,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         return;
       }
+
+      // PCI DSS 6.5.9: Fetch CSRF cookie before any state-changing requests
+      await fetch('/health', { credentials: 'include' });
 
       const statusRes = await fetch('/api/auth/status');
       const statusData = await statusRes.json();
@@ -188,6 +217,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
+    // PCI DSS 8.1.5: Invalidate token server-side
+    const currentToken = localStorage.getItem('jj_token');
+    if (currentToken && !isOfflineMode()) {
+      fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${currentToken}` }
+      }).catch(() => {}); // Best-effort server invalidation
+    }
     setToken(null);
     setUser(null);
     localStorage.removeItem('jj_token');

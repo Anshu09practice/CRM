@@ -335,6 +335,32 @@ const migrations: Migration[] = [
       ALTER TABLE items ADD COLUMN sku_id TEXT DEFAULT NULL;
       CREATE UNIQUE INDEX IF NOT EXISTS idx_items_sku ON items(sku_id) WHERE sku_id IS NOT NULL;
     `
+  },
+  {
+    version: 11,
+    name: 'iso20022_transaction_refs',
+    sql: `
+      -- ISO 20022: Add Unique End-to-End Transaction Reference (UETR) to bills
+      ALTER TABLE bills ADD COLUMN transaction_ref TEXT DEFAULT NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_bills_txn_ref ON bills(transaction_ref) WHERE transaction_ref IS NOT NULL;
+
+      -- ISO 20022: Add currency code (ISO 4217) — default INR
+      ALTER TABLE bills ADD COLUMN currency_code TEXT NOT NULL DEFAULT 'INR';
+
+      -- PCI DSS 10.2: Audit log table for persistent storage
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event TEXT NOT NULL,
+        user_id INTEGER,
+        username TEXT,
+        ip_address TEXT,
+        details TEXT DEFAULT '',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_audit_log_event ON audit_log(event);
+      CREATE INDEX IF NOT EXISTS idx_audit_log_date ON audit_log(created_at);
+      CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
+    `
   }
 ];
 

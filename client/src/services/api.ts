@@ -27,12 +27,23 @@ export const getApiBase = (): string => {
 // API_BASE is dynamic to support configurable server URL
 export const get_API_BASE = () => getApiBase();
 
+// PCI DSS 6.5.9: Read CSRF token from cookie for state-changing requests
+function getCsrfToken(): string | null {
+  const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('jj_token');
+  const headers: Record<string, string> = {};
   if (token) {
-    return { Authorization: `Bearer ${token}` };
+    headers['Authorization'] = `Bearer ${token}`;
   }
-  return {};
+  const csrf = getCsrfToken();
+  if (csrf) {
+    headers['X-CSRF-Token'] = csrf;
+  }
+  return headers;
 }
 
 // Types
@@ -133,6 +144,9 @@ export interface Bill {
   notes: string;
   whatsapp_sent: number;
   created_at: string;
+  // ISO 20022 compliance fields
+  transaction_ref?: string;
+  currency_code?: string;
   items?: BillItem[];
   payments?: Payment[];
 }

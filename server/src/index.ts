@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
+import crypto from 'crypto';
 import path from 'path';
 import os from 'os';
 import https from 'https';
@@ -49,12 +51,14 @@ app.use(cors({
     // Allow requests with no origin (mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    // Allow same-network IPs during development
-    if (origin.match(/^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/)) return callback(null, true);
+    // PCI DSS 6.5.9: No wildcard private IP access — whitelist specific origins only
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
 }));
+
+// PCI DSS 4.1: Cookie security settings
+app.use(cookieParser());
 
 // Rate limiting - general API
 const generalLimiter = rateLimit({
@@ -81,6 +85,34 @@ app.use('/api/auth/forgot-password', authLimiter);
 // Body parsing with size limits
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// PCI DSS 6.5.9: CSRF protection (double-submit cookie pattern)
+app.use((req, res, next) => {
+  // Skip CSRF for GET/HEAD/OPTIONS and API auth endpoints (token-based)
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    // Set CSRF token cookie on safe requests
+    if (!req.cookies['_csrf']) {
+      const csrfToken = crypto.randomBytes(32).toString('hex');
+      res.cookie('_csrf', csrfToken, {
+        httpOnly: false, // Client needs to read this
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 3600000 // 1 hour
+      });
+    }
+    return next();
+  }
+  // For state-changing requests from browser (non-API mobile clients skip via no-origin)
+  const origin = req.headers.origin;
+  if (origin && !req.path.startsWith('/api/auth/')) {
+    const cookieToken = req.cookies['_csrf'];
+    const headerToken = req.headers['x-csrf-token'];
+    if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+      return res.status(403).json({ error: 'CSRF token mismatch' });
+    }
+  }
+  next();
+});
 
 // Health check endpoint (no auth)
 app.get('/health', (_req, res) => {
@@ -149,23 +181,33 @@ function start() {
 
   const localIP = getLocalIP();
 
-  // Support HTTP mode for cloud deployment (behind reverse proxy)
-  if (process.env.HTTP_MODE === 'true' || (!fs.existsSync(keyPath) && process.env.NO_SSL === 'true')) {
+  // PCI DSS 4.1: HTTP mode ONLY allowed behind a verified reverse proxy (e.g., nginx with TLS termination)
+  if (process.env.HTTP_MODE === 'true' && process.env.TRUSTED_PROXY === 'true') {
+    app.set('trust proxy', 1); // Trust first proxy
+    // Enforce HTTPS via Strict-Transport-Security even behind proxy
+    app.use((_req, _res, next) => {
+      _res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+      next();
+    });
     const httpServer = http.createServer(app);
     initWebSocket(httpServer);
-    httpServer.listen(Number(PORT), '0.0.0.0', () => {
+    httpServer.listen(Number(PORT), '127.0.0.1', () => {
       console.log('\n=========================================');
-      console.log('   Jalan Jyothi CRM - Server Ready (HTTP)');
+      console.log('   Jalan Jyothi CRM - Server Ready (Proxy Mode)');
       console.log('=========================================');
-      console.log(`   Local:   http://localhost:${PORT}`);
-      console.log(`   Network: http://${localIP}:${PORT}`);
-      console.log('=========================================');
-      console.log('   ⚠️  Running in HTTP mode (use reverse proxy for HTTPS in production)');
-      console.log('   WebSocket: ws://localhost:' + PORT);
+      console.log(`   Listening: http://127.0.0.1:${PORT} (behind TLS-terminating proxy)`);
+      console.log('   ⚠️  Ensure reverse proxy enforces TLS 1.2+');
       console.log('=========================================\n');
       scheduleDailyBackup();
     });
     return;
+  }
+
+  // PCI DSS 4.1: Reject plain HTTP without proxy
+  if (process.env.HTTP_MODE === 'true' && !process.env.TRUSTED_PROXY) {
+    console.error('\n✗ PCI DSS VIOLATION: HTTP_MODE requires TRUSTED_PROXY=true');
+    console.error('  Plain HTTP is not permitted. Use TLS or a TLS-terminating reverse proxy.');
+    process.exit(1);
   }
 
   if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
@@ -179,6 +221,12 @@ function start() {
     key: fs.readFileSync(keyPath),
     cert: fs.readFileSync(certPath)
   };
+
+  // PCI DSS 4.1: Enforce HSTS on direct HTTPS connections
+  app.use((_req, _res, next) => {
+    _res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    next();
+  });
 
   const server = https.createServer(options, app);
   initWebSocket(server);
