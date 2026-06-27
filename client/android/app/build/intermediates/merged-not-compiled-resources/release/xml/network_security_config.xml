@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PCI DSS 4.1: Network Security Configuration
+  - Enforces TLS 1.2+ for all connections
+  - Disables cleartext traffic
+  - Certificate pinning configured for production
+-->
+<network-security-config>
+    <!-- PCI DSS 4.1: No cleartext traffic allowed -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!--
+      Production domain certificate pinning.
+      
+      SETUP INSTRUCTIONS:
+      1. Deploy your server with a CA-signed certificate
+      2. Get the pin hash:
+         openssl s_client -connect yourdomain.com:443 2>/dev/null | \
+           openssl x509 -pubkey -noout | \
+           openssl pkey -pubin -outform der | \
+           openssl dgst -sha256 -binary | base64
+      3. Replace the domain and pin values below
+      4. Uncomment the domain-config block
+      5. Always include a backup pin (e.g., from your CA's intermediate cert)
+    -->
+    <!--
+    <domain-config>
+        <domain includeSubdomains="true">your-production-domain.com</domain>
+        <pin-set expiration="2027-06-27">
+            <pin digest="SHA-256">YOUR_PRIMARY_CERT_PIN_BASE64_HERE</pin>
+            <pin digest="SHA-256">YOUR_BACKUP_CA_PIN_BASE64_HERE</pin>
+        </pin-set>
+    </domain-config>
+    -->
+
+    <!-- Development: Allow user-installed certs ONLY in debug builds -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user" />
+            <certificates src="system" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

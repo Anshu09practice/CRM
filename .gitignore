@@ -2,9 +2,7 @@ node_modules/
 
 # Build outputs
 client/dist/
-client/android/app/build/
 client/android/capacitor-cordova-android-plugins/build/
-client/android/build/
 
 # Gradle cache
 client/android/.gradle/
