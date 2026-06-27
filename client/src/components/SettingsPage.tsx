@@ -10,7 +10,7 @@ export default function SettingsPage() {
   if (!isOwner) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+        <h1 className="page-title">Settings</h1>
         <PasswordSection />
       </div>
     );
@@ -18,7 +18,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+      <h1 className="page-title">Settings</h1>
 
       <div className="flex gap-2 border-b border-gray-200 pb-2">
         <TabButton active={activeTab === 'users'} onClick={() => setActiveTab('users')}>Users</TabButton>
@@ -113,7 +113,7 @@ function UsersSection() {
                 <button onClick={() => toggleActive(u)} className={`text-xs ${u.is_active ? 'text-amber-600' : 'text-green-600'}`}>
                   {u.is_active ? 'Deactivate' : 'Activate'}
                 </button>
-                <button onClick={() => handleDelete(u)} className="text-xs text-red-600">Delete</button>
+                <button onClick={() => handleDelete(u)} className="text-xs text-rose-600">Delete</button>
               </div>
             </div>
           ))}
@@ -126,27 +126,27 @@ function UsersSection() {
             <h2 className="text-lg font-semibold mb-4">Create User</h2>
             <div className="space-y-3">
               <div>
-                <label className="label">Username *</label>
-                <input name="username" required className="input w-full" />
+                <label htmlFor="create-username" className="label">Username *</label>
+                <input id="create-username" name="username" required className="input w-full" />
               </div>
               <div>
-                <label className="label">Password *</label>
-                <input name="password" type="password" required minLength={4} className="input w-full" />
+                <label htmlFor="create-password" className="label">Password *</label>
+                <input id="create-password" name="password" type="password" required minLength={4} className="input w-full" />
               </div>
               <div>
-                <label className="label">Role *</label>
-                <select name="role" className="input w-full">
+                <label htmlFor="create-role" className="label">Role *</label>
+                <select id="create-role" name="role" className="input w-full">
                   <option value="manager">Manager</option>
                   <option value="owner">Owner</option>
                 </select>
               </div>
               <div>
-                <label className="label">Security Question</label>
-                <input name="security_question" placeholder="e.g., Your pet's name?" className="input w-full" />
+                <label htmlFor="create-security-question" className="label">Security Question</label>
+                <input id="create-security-question" name="security_question" placeholder="e.g., Your pet's name?" className="input w-full" />
               </div>
               <div>
-                <label className="label">Security Answer</label>
-                <input name="security_answer" className="input w-full" />
+                <label htmlFor="create-security-answer" className="label">Security Answer</label>
+                <input id="create-security-answer" name="security_answer" className="input w-full" />
               </div>
             </div>
             <div className="flex gap-2 mt-4 justify-end">
@@ -215,7 +215,7 @@ function CategoriesSection() {
                 <p className="font-medium text-gray-900">{c.name}</p>
                 <p className="text-xs text-gray-500">{c.item_count || 0} items</p>
               </div>
-              <button onClick={() => handleDelete(c.id)} className="text-xs text-red-600 hover:text-red-800">Delete</button>
+              <button onClick={() => handleDelete(c.id)} className="text-xs text-rose-600 hover:text-red-800">Delete</button>
             </div>
           ))}
           {categories.length === 0 && <p className="text-gray-400 text-sm">No categories yet</p>}
@@ -250,19 +250,20 @@ function PasswordSection() {
       <h2 className="font-semibold text-gray-800 mb-4">Change Password</h2>
       <form onSubmit={handleChange} className="space-y-3">
         <div>
-          <label className="label">Current Password</label>
-          <input name="current" type="password" required className="input w-full" />
+          <label htmlFor="change-current-password" className="label">Current Password</label>
+          <input id="change-current-password" name="current" type="password" required className="input w-full" />
         </div>
         <div>
-          <label className="label">New Password</label>
-          <input name="new" type="password" required minLength={4} className="input w-full" />
+          <label htmlFor="change-new-password" className="label">New Password</label>
+          <input id="change-new-password" name="new" type="password" required minLength={4} className="input w-full" />
         </div>
         <div>
-          <label className="label">Confirm New Password</label>
-          <input name="confirm" type="password" required minLength={4} className="input w-full" />
+          <label htmlFor="change-confirm-password" className="label">Confirm New Password</label>
+          <input id="change-confirm-password" name="confirm" type="password" required minLength={4} className="input w-full" />
         </div>
         <button type="submit" className="btn-primary">Update Password</button>
       </form>
     </div>
   );
 }
+

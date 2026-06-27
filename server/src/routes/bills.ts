@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { queryAll, queryOne, runQuery, runTransaction } from '../db';
+import { notifyBillCreated, notifyStockUpdate, notifyPaymentReceived } from '../services/realtime';
 
 const router = Router();
 
@@ -241,6 +242,22 @@ router.post('/', (req: Request, res: Response) => {
     newBill = queryOne('SELECT * FROM bills WHERE id = ?', [billId]);
     billItems = queryAll('SELECT * FROM bill_items WHERE bill_id = ?', [billId]);
   });
+
+  // Emit real-time notifications
+  const user = (req as any).user;
+  if (newBill) {
+    notifyBillCreated(newBill.id, newBill.bill_number, newBill.total, customer_name, user.userId, user.username);
+    // Notify stock updates for each item
+    for (const vi of validatedItems) {
+      const updatedItem = queryOne('SELECT current_stock FROM items WHERE id = ?', [vi.item_id]);
+      if (updatedItem) {
+        notifyStockUpdate(vi.item_id, vi.item_name, updatedItem.current_stock, user.userId, user.username);
+      }
+    }
+    if (paid > 0) {
+      notifyPaymentReceived(newBill.id, newBill.bill_number, paid, user.userId, user.username);
+    }
+  }
 
   res.status(201).json({ ...newBill, items: billItems! });
 });

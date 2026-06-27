@@ -85,7 +85,7 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {error && (
-            <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>
+            <div className="bg-rose-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>
           )}
 
           {/* Item Selection */}
@@ -139,8 +139,9 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
 
           {/* Purchase Cost */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Purchase Cost (₹ per unit)</label>
+            <label htmlFor="purchase-cost" className="block text-sm font-medium text-slate-700 mb-1">Purchase Cost (₹ per unit)</label>
             <input
+              id="purchase-cost"
               type="number"
               value={formData.purchase_cost || ''}
               onChange={e => setFormData(prev => ({ ...prev, purchase_cost: e.target.value === '' ? 0 : (parseFloat(e.target.value) || 0) }))}
@@ -165,8 +166,9 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
 
           {/* Purchase Date */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Purchase Date</label>
+            <label htmlFor="purchase-date" className="block text-sm font-medium text-slate-700 mb-1">Purchase Date</label>
             <input
+              id="purchase-date"
               type="date"
               value={formData.purchase_date}
               onChange={e => setFormData(prev => ({ ...prev, purchase_date: e.target.value }))}
@@ -198,3 +200,4 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
     </div>
   );
 }
+

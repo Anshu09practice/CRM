@@ -94,27 +94,30 @@ router.get('/summary', (_req: Request, res: Response) => {
 router.get('/top-items', (req: Request, res: Response) => {
   const { period } = req.query;
   const monthStart = new Date().toISOString().split('T')[0].slice(0, 7) + '-01';
-  const dateFilter = period === 'all' ? '' : `AND b.bill_date >= '${monthStart}'`;
+
+  // Use parameterized queries to prevent SQL injection
+  const params = period === 'all' ? [] : [monthStart];
+  const dateCondition = period === 'all' ? '' : 'AND b.bill_date >= ?';
 
   const topItems = queryAll(`
     SELECT bi.item_name, SUM(bi.quantity) as total_qty, SUM(bi.line_total) as total_revenue
     FROM bill_items bi
     JOIN bills b ON b.id = bi.bill_id
-    WHERE 1=1 ${dateFilter}
+    WHERE 1=1 ${dateCondition}
     GROUP BY bi.item_id
     ORDER BY total_qty DESC
     LIMIT 5
-  `);
+  `, params);
 
   const bottomItems = queryAll(`
     SELECT bi.item_name, SUM(bi.quantity) as total_qty, SUM(bi.line_total) as total_revenue
     FROM bill_items bi
     JOIN bills b ON b.id = bi.bill_id
-    WHERE 1=1 ${dateFilter}
+    WHERE 1=1 ${dateCondition}
     GROUP BY bi.item_id
     ORDER BY total_qty ASC
     LIMIT 5
-  `);
+  `, params);
 
   // Profit margins by item
   const margins = queryAll(`

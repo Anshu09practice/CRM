@@ -25,7 +25,7 @@ export const getApiBase = (): string => {
 };
 
 // API_BASE is dynamic to support configurable server URL
-const get_API_BASE = () => getApiBase();
+export const get_API_BASE = () => getApiBase();
 
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('jj_token');

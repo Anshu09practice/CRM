@@ -4,7 +4,10 @@
 
 @layer base {
   body {
-    @apply text-gray-800 antialiased bg-gray-50 min-h-screen;
+    @apply text-zinc-800 dark:text-zinc-100 antialiased bg-zinc-50 dark:bg-zinc-950 min-h-screen transition-colors duration-200;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   @media print {
@@ -15,27 +18,57 @@
 }
 
 @layer components {
+
+  /* ─── Buttons ─────────────────────────────────────────────── */
   .btn-primary {
-    @apply bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium text-sm
-           hover:bg-indigo-700 active:bg-indigo-800
-           transition-colors shadow-sm
-           disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2
+           px-4 py-2.5 rounded-xl font-semibold text-sm text-white
+           bg-gradient-to-r from-brand-600 to-violet-600
+           shadow-brand hover:shadow-brand-lg
+           hover:from-brand-700 hover:to-violet-700
+           active:scale-[0.97] active:shadow-sm
+           transition-all duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100;
   }
 
   .btn-secondary {
-    @apply bg-white text-gray-700 px-4 py-2 rounded-lg font-medium text-sm border border-gray-200
-           hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100 transition-colors;
+    @apply inline-flex items-center justify-center gap-2
+           px-4 py-2.5 rounded-xl font-semibold text-sm
+           bg-white dark:bg-zinc-800
+           text-zinc-700 dark:text-zinc-200
+           border border-zinc-200 dark:border-zinc-700
+           hover:bg-zinc-50 dark:hover:bg-zinc-700
+           hover:border-zinc-300 dark:hover:border-zinc-600
+           active:scale-[0.97]
+           transition-all duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-danger {
-    @apply bg-red-600 text-white px-4 py-2 rounded-lg font-medium text-sm
-           hover:bg-red-700 active:bg-red-800 transition-colors shadow-sm;
+    @apply inline-flex items-center justify-center gap-2
+           px-4 py-2.5 rounded-xl font-semibold text-sm text-white
+           bg-rose-600 hover:bg-rose-700 active:bg-rose-800
+           shadow-sm active:scale-[0.97]
+           transition-all duration-150;
   }
 
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           px-3 py-2 rounded-lg font-medium text-sm
+           text-zinc-600 dark:text-zinc-400
+           hover:bg-zinc-100 dark:hover:bg-zinc-800
+           hover:text-zinc-900 dark:hover:text-zinc-100
+           active:scale-[0.97] transition-all duration-150;
+  }
+
+  /* ─── Form Inputs ─────────────────────────────────────────── */
   .input {
-    @apply px-3 py-2 border border-gray-200 rounded-lg bg-white
-           focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400
-           placeholder-gray-400 transition-all text-sm;
+    @apply px-3.5 py-2.5 border border-zinc-200 dark:border-zinc-700 rounded-xl
+           bg-white dark:bg-zinc-900
+           focus:outline-none focus:ring-2 focus:ring-brand-500/25 focus:border-brand-400 dark:focus:border-brand-500
+           placeholder-zinc-400 dark:placeholder-zinc-600
+           transition-all duration-150 text-sm
+           text-zinc-900 dark:text-zinc-100;
   }
 
   .input-field {
@@ -43,14 +76,111 @@
   }
 
   .label {
-    @apply block text-xs font-medium text-gray-600 mb-1;
+    @apply block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wide;
   }
 
+  /* ─── Cards ───────────────────────────────────────────────── */
   .card {
-    @apply bg-white rounded-xl border border-gray-200 p-4 transition-all duration-200;
+    @apply bg-white dark:bg-zinc-900
+           rounded-2xl border border-zinc-200 dark:border-zinc-800
+           shadow-card p-4
+           transition-all duration-200;
   }
 
+  .card-hover {
+    @apply card cursor-pointer
+           hover:shadow-card-hover hover:border-zinc-300 dark:hover:border-zinc-700
+           hover:-translate-y-0.5;
+  }
+
+  /* ─── Typography Hierarchy ────────────────────────────────── */
+  .page-title {
+    @apply text-2xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight;
+  }
+
+  .section-title {
+    @apply text-base font-semibold text-zinc-800 dark:text-zinc-200;
+  }
+
+  .card-title {
+    @apply text-sm font-semibold text-zinc-700 dark:text-zinc-300;
+  }
+
+  /* ─── Badges ──────────────────────────────────────────────── */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold;
+  }
+
+  .badge-success {
+    @apply badge bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400;
+  }
+
+  .badge-warning {
+    @apply badge bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400;
+  }
+
+  .badge-danger {
+    @apply badge bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400;
+  }
+
+  .badge-info {
+    @apply badge bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-400;
+  }
+
+  .badge-neutral {
+    @apply badge bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400;
+  }
+
+  .badge-brand {
+    @apply badge bg-brand-100 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300;
+  }
+
+  /* ─── Modal ───────────────────────────────────────────────── */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-50
+           flex items-end sm:items-center justify-center p-0 sm:p-4
+           animate-fade-in;
+  }
+
+  .modal-container {
+    @apply bg-white dark:bg-zinc-900
+           w-full sm:max-w-lg
+           rounded-t-3xl sm:rounded-2xl
+           shadow-float border border-zinc-200/50 dark:border-zinc-700/50
+           overflow-hidden animate-slide-up;
+  }
+
+  .modal-header {
+    @apply flex items-center justify-between px-5 py-4
+           border-b border-zinc-100 dark:border-zinc-800;
+  }
+
+  /* ─── Metric Cards (Dashboard) ────────────────────────────── */
+  .metric-card {
+    @apply rounded-2xl border p-4 transition-all duration-200
+           hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+
+  .metric-card-indigo  { @apply metric-card bg-gradient-to-br from-brand-50 to-white dark:from-brand-950/40 dark:to-zinc-900 border-brand-200 dark:border-brand-900/50; }
+  .metric-card-emerald { @apply metric-card bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/40 dark:to-zinc-900 border-emerald-200 dark:border-emerald-900/50; }
+  .metric-card-amber   { @apply metric-card bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/40 dark:to-zinc-900 border-amber-200 dark:border-amber-900/50; }
+  .metric-card-rose    { @apply metric-card bg-gradient-to-br from-rose-50 to-white dark:from-rose-950/40 dark:to-zinc-900 border-rose-200 dark:border-rose-900/50; }
+  .metric-card-sky     { @apply metric-card bg-gradient-to-br from-sky-50 to-white dark:from-sky-950/40 dark:to-zinc-900 border-sky-200 dark:border-sky-900/50; }
+  .metric-card-violet  { @apply metric-card bg-gradient-to-br from-violet-50 to-white dark:from-violet-950/40 dark:to-zinc-900 border-violet-200 dark:border-violet-900/50; }
+  .metric-card-orange  { @apply metric-card bg-gradient-to-br from-orange-50 to-white dark:from-orange-950/40 dark:to-zinc-900 border-orange-200 dark:border-orange-900/50; }
+  .metric-card-zinc    { @apply metric-card bg-gradient-to-br from-zinc-100 to-white dark:from-zinc-800/40 dark:to-zinc-900 border-zinc-200 dark:border-zinc-700; }
+
+  /* ─── Section divider ─────────────────────────────────────── */
+  .section-divider {
+    @apply border-t border-zinc-100 dark:border-zinc-800 my-4;
+  }
+
+  /* ─── Safe areas ──────────────────────────────────────────── */
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
   }
 }

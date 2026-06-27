@@ -324,7 +324,7 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
                       <button
                         type="button"
                         onClick={() => removeLineItem(idx)}
-                        className="text-red-400 hover:text-red-600 text-lg ml-1"
+                        className="text-red-400 hover:text-rose-600 text-lg ml-1"
                       >
                         ×
                       </button>
@@ -401,3 +401,4 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
     </div>
   );
 }
+

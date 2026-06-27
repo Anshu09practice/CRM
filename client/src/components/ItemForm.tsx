@@ -107,7 +107,7 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="bg-rose-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
 
           <div>
             <label className="label">Item Name *</label>
@@ -122,15 +122,15 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Packaging Style *</label>
-              <select name="packaging_style" value={formData.packaging_style} onChange={handleChange} className="input w-full">
+              <label htmlFor="item-packaging-style" className="label">Packaging Style *</label>
+              <select id="item-packaging-style" name="packaging_style" value={formData.packaging_style} onChange={handleChange} className="input w-full">
                 <option value="packet">Packet</option>
                 <option value="standing_package">Standing Package</option>
               </select>
             </div>
             <div>
-              <label className="label">Category</label>
-              <select name="category_id" value={formData.category_id || ''} onChange={handleChange} className="input w-full">
+              <label htmlFor="item-category" className="label">Category</label>
+              <select id="item-category" name="category_id" value={formData.category_id || ''} onChange={handleChange} className="input w-full">
                 <option value="">No category</option>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -138,8 +138,8 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
           </div>
 
           <div>
-            <label className="label">Package Quantity (grams) *</label>
-            <input type="number" name="package_quantity_grams" value={formData.package_quantity_grams || ''} onChange={handleChange} className="input w-full" min="1" step="1" />
+            <label htmlFor="item-package-quantity" className="label">Package Quantity (grams) *</label>
+            <input id="item-package-quantity" type="number" name="package_quantity_grams" value={formData.package_quantity_grams || ''} onChange={handleChange} className="input w-full" min="1" step="1" />
           </div>
 
           {/* Sizing Preview */}
@@ -153,16 +153,16 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="label">Purchase ₹</label>
-              <input type="number" name="purchase_cost" value={formData.purchase_cost || ''} onChange={handleChange} className="input w-full" min="0" step="0.01" />
+              <label htmlFor="item-purchase-cost" className="label">Purchase ₹</label>
+              <input id="item-purchase-cost" type="number" name="purchase_cost" value={formData.purchase_cost || ''} onChange={handleChange} className="input w-full" min="0" step="0.01" />
             </div>
             <div>
-              <label className="label">Selling ₹</label>
-              <input type="number" name="selling_price" value={formData.selling_price || ''} onChange={handleChange} className="input w-full" min="0" step="0.01" />
+              <label htmlFor="item-selling-price" className="label">Selling ₹</label>
+              <input id="item-selling-price" type="number" name="selling_price" value={formData.selling_price || ''} onChange={handleChange} className="input w-full" min="0" step="0.01" />
             </div>
             <div>
-              <label className="label">MRP ₹</label>
-              <input type="number" name="mrp" value={formData.mrp || ''} onChange={handleChange} className="input w-full" min="0" step="0.01" />
+              <label htmlFor="item-mrp" className="label">MRP ₹</label>
+              <input id="item-mrp" type="number" name="mrp" value={formData.mrp || ''} onChange={handleChange} className="input w-full" min="0" step="0.01" />
             </div>
           </div>
 
@@ -186,3 +186,4 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
     </div>
   );
 }
+

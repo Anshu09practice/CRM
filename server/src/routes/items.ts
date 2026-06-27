@@ -5,11 +5,12 @@ import { requireRole } from '../middleware/auth';
 
 const router = Router();
 
-// GET /api/items - List all items with optional search
+// GET /api/items - List items with optional search and pagination
 router.get('/', (req: Request, res: Response) => {
-  const { search, packaging_style, category_id } = req.query;
+  const { search, packaging_style, category_id, page, limit: limitParam } = req.query;
 
   let query = 'SELECT * FROM items';
+  let countQuery = 'SELECT COUNT(*) as total FROM items';
   const conditions: string[] = [];
   const params: any[] = [];
 
@@ -29,13 +30,28 @@ router.get('/', (req: Request, res: Response) => {
   }
 
   if (conditions.length > 0) {
-    query += ' WHERE ' + conditions.join(' AND ');
+    const whereClause = ' WHERE ' + conditions.join(' AND ');
+    query += whereClause;
+    countQuery += whereClause;
   }
 
   query += ' ORDER BY updated_at DESC';
 
-  const items = queryAll(query, params);
-  res.json({ items, total: items.length });
+  // Pagination support (optional - if page/limit not provided, returns all for backward compat)
+  const pageNum = page ? Math.max(1, parseInt(page as string, 10) || 1) : null;
+  const limit = limitParam ? Math.min(100, Math.max(1, parseInt(limitParam as string, 10) || 50)) : null;
+
+  if (pageNum && limit) {
+    const offset = (pageNum - 1) * limit;
+    query += ' LIMIT ? OFFSET ?';
+    const countResult = queryOne(countQuery, params) as any;
+    const total = countResult?.total || 0;
+    const items = queryAll(query, [...params, limit, offset]);
+    res.json({ items, total, page: pageNum, limit, totalPages: Math.ceil(total / limit) });
+  } else {
+    const items = queryAll(query, params);
+    res.json({ items, total: items.length });
+  }
 });
 
 // GET /api/items/export/json - Export all items as JSON (must be before /:id)

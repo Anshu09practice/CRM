@@ -149,7 +149,7 @@ export default function ImportModal({ onClose, onImported }: ImportModalProps) {
 
         <div className="p-4">
           {error && (
-            <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>
+            <div className="bg-rose-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>
           )}
 
           {/* Step: Source Selection */}
@@ -286,3 +286,4 @@ export default function ImportModal({ onClose, onImported }: ImportModalProps) {
     </div>
   );
 }
+

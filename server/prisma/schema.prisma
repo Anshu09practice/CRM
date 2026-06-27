@@ -1,0 +1,220 @@
+// Prisma schema for JJ CRM - PostgreSQL target
+// To use: set DATABASE_URL env var and run `npx prisma migrate dev`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  Int       @id @default(autoincrement())
+  username            String    @unique
+  passwordHash        String    @map("password_hash")
+  role                Role      @default(owner)
+  securityQuestion    String?   @map("security_question")
+  securityAnswerHash  String?   @map("security_answer_hash")
+  isActive            Boolean   @default(true) @map("is_active")
+  lastLogin           DateTime? @map("last_login")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String   @default("")
+  createdAt   DateTime @default(now()) @map("created_at")
+  items       Item[]
+
+  @@map("categories")
+}
+
+model Item {
+  id                   Int         @id @default(autoincrement())
+  skuId                String?     @unique @map("sku_id")
+  itemName             String      @map("item_name")
+  packageQuantityGrams Int         @default(0) @map("package_quantity_grams")
+  purchaseCost         Float       @default(0) @map("purchase_cost")
+  sellingPrice         Float       @default(0) @map("selling_price")
+  mrp                  Float       @default(0)
+  packagingStyle       PackagingStyle @default(packet) @map("packaging_style")
+  packetsPerBundle     Int         @default(0) @map("packets_per_bundle")
+  bundleWeightGrams    Int         @default(0) @map("bundle_weight_grams")
+  currentStock         Int         @default(0) @map("current_stock")
+  lowStockThreshold    Int         @default(10) @map("low_stock_threshold")
+  defaultTaxPercent    Float       @default(0) @map("default_tax_percent")
+  categoryId           Int?        @map("category_id")
+  category             Category?   @relation(fields: [categoryId], references: [id])
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  purchases Purchase[]
+  billItems BillItem[]
+
+  @@index([itemName])
+  @@index([packagingStyle])
+  @@index([categoryId])
+  @@map("items")
+}
+
+model Customer {
+  id            Int      @id @default(autoincrement())
+  name          String
+  phone         String   @default("")
+  address       String   @default("")
+  creditBalance Float    @default(0) @map("credit_balance")
+  notes         String   @default("")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  bills       Bill[]
+  creditNotes CreditNote[]
+
+  @@index([name])
+  @@index([phone])
+  @@map("customers")
+}
+
+model Purchase {
+  id                   Int      @id @default(autoincrement())
+  itemId               Int      @map("item_id")
+  item                 Item     @relation(fields: [itemId], references: [id])
+  itemName             String   @map("item_name")
+  quantity             Int      @default(0)
+  packageQuantityGrams Int      @default(0) @map("package_quantity_grams")
+  purchaseCost         Float    @default(0) @map("purchase_cost")
+  totalCost            Float    @default(0) @map("total_cost")
+  packagingStyle       String   @default("packet") @map("packaging_style")
+  purchaseDate         String   @map("purchase_date")
+  notes                String   @default("")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  @@index([itemId])
+  @@index([purchaseDate])
+  @@map("purchases")
+}
+
+model Bill {
+  id              Int      @id @default(autoincrement())
+  billNumber      String   @unique @map("bill_number")
+  customerName    String   @map("customer_name")
+  customerPhone   String   @default("") @map("customer_phone")
+  customerAddress String   @default("") @map("customer_address")
+  customerId      Int?     @map("customer_id")
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  subtotal        Float    @default(0)
+  discountPercent Float    @default(0) @map("discount_percent")
+  discountAmount  Float    @default(0) @map("discount_amount")
+  taxPercent      Float    @default(0) @map("tax_percent")
+  cgstAmount      Float    @default(0) @map("cgst_amount")
+  sgstAmount      Float    @default(0) @map("sgst_amount")
+  taxTotal        Float    @default(0) @map("tax_total")
+  total           Float    @default(0)
+  amountPaid      Float    @default(0) @map("amount_paid")
+  paymentStatus   PaymentStatus @default(pending) @map("payment_status")
+  billDate        String   @map("bill_date")
+  notes           String   @default("")
+  whatsappSent    Boolean  @default(false) @map("whatsapp_sent")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  items       BillItem[]
+  payments    Payment[]
+  creditNotes CreditNote[]
+
+  @@index([billDate])
+  @@index([customerName])
+  @@map("bills")
+}
+
+model BillItem {
+  id                   Int   @id @default(autoincrement())
+  billId               Int   @map("bill_id")
+  bill                 Bill  @relation(fields: [billId], references: [id], onDelete: Cascade)
+  itemId               Int   @map("item_id")
+  item                 Item  @relation(fields: [itemId], references: [id])
+  itemName             String @map("item_name")
+  quantity             Int    @default(1)
+  packageQuantityGrams Int    @default(0) @map("package_quantity_grams")
+  sellingPrice         Float  @default(0) @map("selling_price")
+  lineTotal            Float  @default(0) @map("line_total")
+
+  @@index([billId])
+  @@map("bill_items")
+}
+
+model Payment {
+  id            Int      @id @default(autoincrement())
+  billId        Int      @map("bill_id")
+  bill          Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  amount        Float
+  paymentMethod PaymentMethod @default(cash) @map("payment_method")
+  paymentDate   String   @map("payment_date")
+  notes         String   @default("")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([billId])
+  @@map("payments")
+}
+
+model Expense {
+  id          Int      @id @default(autoincrement())
+  category    String   @default("general")
+  amount      Float
+  description String   @default("")
+  expenseDate String   @map("expense_date")
+  createdBy   String   @default("") @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([expenseDate])
+  @@index([category])
+  @@map("expenses")
+}
+
+model CreditNote {
+  id         Int      @id @default(autoincrement())
+  billId     Int?     @map("bill_id")
+  bill       Bill?    @relation(fields: [billId], references: [id])
+  customerId Int?     @map("customer_id")
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  amount     Float
+  reason     String   @default("")
+  type       CreditNoteType @default(credit)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("credit_notes")
+}
+
+// Enums
+enum Role {
+  owner
+  manager
+}
+
+enum PackagingStyle {
+  packet
+  standing_package
+}
+
+enum PaymentStatus {
+  pending
+  partial
+  paid
+  overdue
+}
+
+enum PaymentMethod {
+  cash
+  upi
+  card
+  credit
+}
+
+enum CreditNoteType {
+  credit
+  debit
+}

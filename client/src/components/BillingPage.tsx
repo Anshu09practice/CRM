@@ -114,24 +114,29 @@ export default function BillingPage() {
   };
 
   return (
-    <div>
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-slate-900">Billing</h2>
+      <div className="flex items-center justify-between">
+        <h1 className="page-title">Billing</h1>
         <button onClick={() => { fetchStock(); setShowForm(true); }} className="btn-primary text-sm">
           + New Bill
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 flex-wrap mb-4">
-        <input
-          type="text"
-          placeholder="Search customer / bill no..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="input-field flex-1 min-w-[150px]"
-        />
+      <div className="flex gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[150px]">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search customer / bill no..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="input-field pl-9"
+          />
+        </div>
         <input
           type="date"
           value={dateFrom}
@@ -149,34 +154,38 @@ export default function BillingPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-        <div className="card text-center bg-gradient-to-br from-emerald-50 to-white">
-          <p className="text-2xl font-bold text-emerald-600">{bills.length}</p>
-          <p className="text-xs text-slate-500">Total Bills</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="metric-card-emerald text-center p-4">
+          <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{bills.length}</p>
+          <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wide font-semibold">Total Bills</p>
         </div>
-        <div className="card text-center bg-gradient-to-br from-blue-50 to-white">
-          <p className="text-2xl font-bold text-blue-600">₹{totalRevenue.toFixed(0)}</p>
-          <p className="text-xs text-slate-500">Revenue</p>
+        <div className="metric-card-sky text-center p-4">
+          <p className="text-2xl font-bold text-sky-700 dark:text-sky-400">₹{totalRevenue.toFixed(0)}</p>
+          <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wide font-semibold">Revenue</p>
         </div>
-        <div className="card text-center bg-gradient-to-br from-purple-50 to-white col-span-2 sm:col-span-1">
-          <p className="text-2xl font-bold text-purple-600">{stock.length}</p>
-          <p className="text-xs text-slate-500">Items in Stock</p>
+        <div className="metric-card-violet text-center p-4 col-span-2 sm:col-span-1">
+          <p className="text-2xl font-bold text-violet-700 dark:text-violet-400">{stock.length}</p>
+          <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wide font-semibold">Items in Stock</p>
         </div>
       </div>
 
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-200 border-t-brand-600"></div>
         </div>
       )}
 
       {/* Empty State */}
       {!loading && bills.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-4xl mb-3">🧾</p>
-          <p className="text-slate-600 font-medium">No bills created yet</p>
-          <p className="text-sm text-slate-500 mt-1">Create your first bill to start selling</p>
+        <div className="text-center py-16">
+          <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 14.25l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185z" />
+            </svg>
+          </div>
+          <p className="text-zinc-700 dark:text-zinc-300 font-semibold">No bills created yet</p>
+          <p className="text-sm text-zinc-400 mt-1">Create your first bill to start selling</p>
           <button onClick={() => { fetchStock(); setShowForm(true); }} className="btn-primary text-sm mt-4">
             + New Bill
           </button>
@@ -187,42 +196,38 @@ export default function BillingPage() {
       {!loading && bills.length > 0 && (
         <div className="space-y-2">
           {bills.map(b => (
-            <div key={b.id} className="card hover:shadow-md transition-shadow">
+            <div key={b.id} className="card p-4 hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200">
               <div className="flex items-start gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-slate-900">{b.customer_name}</p>
-                    <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">{b.customer_name}</p>
+                    <span className="text-[10px] font-mono badge-neutral">
                       {b.bill_number}
                     </span>
                     {b.whatsapp_sent === 1 && (
-                      <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">✓ Sent</span>
+                      <span className="badge-success">Sent</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
-                    <span>📅 {b.bill_date}</span>
-                    {b.customer_phone && <span>📱 {b.customer_phone}</span>}
+                  <div className="flex items-center gap-3 text-xs text-zinc-500 mt-1 flex-wrap">
+                    <span>{b.bill_date}</span>
+                    {b.customer_phone && <span>{b.customer_phone}</span>}
                     {b.discount_percent > 0 && (
-                      <span className="text-orange-600">-{b.discount_percent}%</span>
+                      <span className="badge-warning">-{b.discount_percent}%</span>
                     )}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-bold text-lg text-emerald-700">₹{b.total.toFixed(0)}</p>
-                  <div className="flex gap-1.5 mt-1 justify-end flex-wrap">
-                    <button onClick={() => handlePrint(b)} className="text-[11px] text-slate-600 hover:text-slate-900 font-medium">
-                      🖨️
-                    </button>
-                    <button onClick={() => handleWhatsApp(b)} className="text-[11px] text-green-600 hover:text-green-800 font-medium">
-                      📲
-                    </button>
+                  <p className="font-bold text-lg text-emerald-700 dark:text-emerald-400">₹{b.total.toFixed(0)}</p>
+                  <div className="flex gap-2 mt-1.5 justify-end flex-wrap">
+                    <button onClick={() => handlePrint(b)} className="btn-ghost py-1 px-2 text-[11px]">Print</button>
+                    <button onClick={() => handleWhatsApp(b)} className="btn-ghost py-1 px-2 text-[11px] text-emerald-600 dark:text-emerald-400">WA</button>
                     <button
                       onClick={async () => { const full = await api.getBill(b.id); setEditingBill(full); fetchStock(); }}
-                      className="text-[11px] text-brand-600 hover:text-brand-800 font-medium"
+                      className="btn-ghost py-1 px-2 text-[11px] text-brand-600 dark:text-brand-400"
                     >
                       Edit
                     </button>
-                    <button onClick={() => handleDelete(b)} className="text-[11px] text-red-600 hover:text-red-800 font-medium">
+                    <button onClick={() => handleDelete(b)} className="btn-ghost py-1 px-2 text-[11px] text-rose-600 dark:text-rose-400">
                       Del
                     </button>
                   </div>

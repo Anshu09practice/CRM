@@ -64,76 +64,98 @@ export default function CustomersPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
+        <h1 className="page-title">Customers</h1>
         <button onClick={() => { setEditing(null); setShowForm(true); }} className="btn-primary text-xs">
           + Add Customer
         </button>
       </div>
 
-      <input
-        type="text"
-        placeholder="Search customers..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="input w-full sm:w-80"
-      />
+      <div className="relative">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Search customers..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="input w-full sm:w-80 pl-9"
+        />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Customer List */}
         <div className="lg:col-span-2 space-y-2">
           {loading ? (
-            [...Array(4)].map((_, i) => <div key={i} className="h-16 bg-gray-200 rounded-lg animate-pulse" />)
+            [...Array(4)].map((_, i) => <div key={i} className="h-16 bg-zinc-200 dark:bg-zinc-800 rounded-xl animate-pulse" />)
           ) : customers.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">No customers found</p>
+            <p className="text-zinc-400 text-center py-10">No customers found</p>
           ) : (
-            customers.map((c) => (
-              <div key={c.id} className="bg-white rounded-lg border border-gray-200 p-3 flex items-center justify-between hover:border-indigo-200 transition-colors cursor-pointer" onClick={() => viewDetails(c)}>
-                <div>
-                  <p className="font-medium text-gray-900">{c.name}</p>
-                  <p className="text-xs text-gray-500">{c.phone || 'No phone'}</p>
+            customers.map((c) => {
+              const initials = c.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+              const avatarColors = ['from-brand-500 to-violet-600', 'from-emerald-500 to-teal-600', 'from-amber-500 to-orange-500', 'from-rose-500 to-pink-500', 'from-sky-500 to-cyan-500'];
+              const av = avatarColors[c.name.charCodeAt(0) % avatarColors.length];
+              return (
+              <div key={c.id} className="card-hover p-3 flex items-center justify-between" onClick={() => viewDetails(c)}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${av} flex items-center justify-center flex-shrink-0`}>
+                    <span className="text-white text-xs font-bold">{initials}</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">{c.name}</p>
+                    <p className="text-xs text-zinc-400">{c.phone || 'No phone'}</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   {c.credit_balance > 0 && (
-                    <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded">
+                    <span className="badge-danger">
                       ₹{c.credit_balance.toLocaleString()} due
                     </span>
                   )}
-                  <button onClick={(e) => { e.stopPropagation(); setEditing(c); setShowForm(true); }} className="text-gray-400 hover:text-indigo-600 text-xs">Edit</button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }} className="text-gray-400 hover:text-red-600 text-xs">Delete</button>
+                  <button onClick={(e) => { e.stopPropagation(); setEditing(c); setShowForm(true); }} className="text-zinc-400 hover:text-brand-600 dark:hover:text-brand-400 text-xs font-medium transition-colors">Edit</button>
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }} className="text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-medium transition-colors">Delete</button>
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </div>
 
         {/* Customer Detail */}
         {selectedCustomer && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <h3 className="font-semibold text-gray-900">{selectedCustomer.name}</h3>
-            <p className="text-sm text-gray-500 mt-1">{selectedCustomer.phone}</p>
-            {selectedCustomer.address && <p className="text-sm text-gray-500">{selectedCustomer.address}</p>}
-
-            <div className="mt-4 grid grid-cols-2 gap-2 text-center">
-              <div className="bg-indigo-50 rounded-lg p-2">
-                <p className="text-xs text-gray-500">Total Spent</p>
-                <p className="font-bold text-indigo-700">₹{(selectedCustomer.totalSpent || 0).toLocaleString()}</p>
+          <div className="card p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-500 to-violet-600 flex items-center justify-center flex-shrink-0`}>
+                <span className="text-white text-sm font-bold">{selectedCustomer.name.slice(0,2).toUpperCase()}</span>
               </div>
-              <div className="bg-red-50 rounded-lg p-2">
-                <p className="text-xs text-gray-500">Credit Balance</p>
-                <p className="font-bold text-red-700">₹{selectedCustomer.credit_balance.toLocaleString()}</p>
+              <div>
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100">{selectedCustomer.name}</h3>
+                <p className="text-sm text-zinc-400">{selectedCustomer.phone || 'No phone'}</p>
+              </div>
+            </div>
+            {selectedCustomer.address && <p className="text-sm text-zinc-500 mb-3">{selectedCustomer.address}</p>}
+
+            <div className="grid grid-cols-2 gap-2 text-center mb-4">
+              <div className="bg-brand-50 dark:bg-brand-950/40 rounded-xl p-2.5 border border-brand-100 dark:border-brand-900/30">
+                <p className="text-[11px] text-zinc-500 uppercase tracking-wide font-semibold">Total Spent</p>
+                <p className="font-bold text-brand-700 dark:text-brand-300 text-sm mt-0.5">₹{(selectedCustomer.totalSpent || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-rose-50 dark:bg-rose-950/40 rounded-xl p-2.5 border border-rose-100 dark:border-rose-900/30">
+                <p className="text-[11px] text-zinc-500 uppercase tracking-wide font-semibold">Credit Due</p>
+                <p className="font-bold text-rose-700 dark:text-rose-400 text-sm mt-0.5">₹{selectedCustomer.credit_balance.toLocaleString()}</p>
               </div>
             </div>
 
             {selectedCustomer.bills && selectedCustomer.bills.length > 0 && (
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Purchase History</h4>
+              <div>
+                <h4 className="card-title mb-2">Purchase History</h4>
                 <div className="space-y-1 max-h-48 overflow-y-auto">
                   {selectedCustomer.bills.map((b: any) => (
-                    <div key={b.id} className="flex justify-between text-xs py-1 border-b border-gray-50">
-                      <span className="text-gray-600">{b.bill_number}</span>
-                      <span className="text-gray-500">{b.bill_date}</span>
-                      <span className="font-medium">₹{b.total}</span>
-                      <span className={`capitalize ${b.payment_status === 'paid' ? 'text-green-600' : 'text-amber-600'}`}>{b.payment_status}</span>
+                    <div key={b.id} className="flex justify-between text-xs py-1.5 border-b border-zinc-100 dark:border-zinc-800">
+                      <span className="text-zinc-600 dark:text-zinc-400 font-medium">{b.bill_number}</span>
+                      <span className="text-zinc-400">{b.bill_date}</span>
+                      <span className="font-semibold text-zinc-800 dark:text-zinc-200">₹{b.total}</span>
+                      <span className={`capitalize font-medium ${b.payment_status === 'paid' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>{b.payment_status}</span>
                     </div>
                   ))}
                 </div>
@@ -145,32 +167,37 @@ export default function CustomersPage() {
 
       {/* Add/Edit Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <form onSubmit={handleSave} className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
-            <h2 className="text-lg font-semibold mb-4">{editing ? 'Edit Customer' : 'Add Customer'}</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="label">Name *</label>
-                <input name="name" defaultValue={editing?.name} required className="input w-full" />
-              </div>
-              <div>
-                <label className="label">Phone</label>
-                <input name="phone" defaultValue={editing?.phone} className="input w-full" />
-              </div>
-              <div>
-                <label className="label">Address</label>
-                <input name="address" defaultValue={editing?.address} className="input w-full" />
-              </div>
-              <div>
-                <label className="label">Notes</label>
-                <textarea name="notes" defaultValue={editing?.notes} className="input w-full" rows={2} />
-              </div>
+        <div className="modal-overlay">
+          <div className="modal-container max-w-md mx-4 sm:mx-0">
+            <div className="modal-header">
+              <h2 className="section-title">{editing ? 'Edit Customer' : 'Add Customer'}</h2>
+              <button type="button" aria-label="Close" onClick={() => { setShowForm(false); setEditing(null); }} className="btn-ghost p-1">
+                <svg className="w-5 h-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
-            <div className="flex gap-2 mt-4 justify-end">
-              <button type="button" onClick={() => { setShowForm(false); setEditing(null); }} className="btn-secondary">Cancel</button>
-              <button type="submit" className="btn-primary">Save</button>
-            </div>
-          </form>
+            <form onSubmit={handleSave} className="p-5 space-y-3">
+              <div>
+                <label htmlFor="customer-name" className="label">Name <span className="text-rose-500">*</span></label>
+                <input id="customer-name" name="name" defaultValue={editing?.name} required className="input-field" />
+              </div>
+              <div>
+                <label htmlFor="customer-phone" className="label">Phone</label>
+                <input id="customer-phone" name="phone" defaultValue={editing?.phone} className="input-field" />
+              </div>
+              <div>
+                <label htmlFor="customer-address" className="label">Address</label>
+                <input id="customer-address" name="address" defaultValue={editing?.address} className="input-field" />
+              </div>
+              <div>
+                <label htmlFor="customer-notes" className="label">Notes</label>
+                <textarea id="customer-notes" name="notes" defaultValue={editing?.notes} className="input-field" rows={2} />
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <button type="button" onClick={() => { setShowForm(false); setEditing(null); }} className="btn-secondary">Cancel</button>
+                <button type="submit" className="btn-primary">Save</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

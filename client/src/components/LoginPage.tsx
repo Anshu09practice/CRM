@@ -83,33 +83,48 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-8"
+         style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #2e1065 35%, #1e1b4b 65%, #09090b 100%)' }}>
+
+      {/* Decorative blobs */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-brand-600/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-violet-600/20 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-sm relative z-10 animate-slide-up">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-indigo-200">
-            <span className="text-white font-bold text-xl">JJ</span>
+          <div className="relative inline-block">
+            <div className="absolute inset-0 bg-brand-500/30 rounded-2xl blur-xl" />
+            <div className="relative w-16 h-16 bg-gradient-to-br from-brand-500 to-violet-600 rounded-2xl flex items-center justify-center mx-auto shadow-brand-lg ring-2 ring-white/10">
+              <span className="text-white font-black text-xl tracking-tight">JJ</span>
+            </div>
           </div>
-          <h1 className="mt-4 text-2xl font-bold text-gray-900">Jalan Jyothi</h1>
-          <p className="text-sm text-gray-500 mt-1">CRM System</p>
+          <h1 className="mt-5 text-2xl font-bold text-white tracking-tight">Jalan Jyothi</h1>
+          <p className="text-sm text-white/50 mt-1">CRM System</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        {/* Card */}
+        <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-6 shadow-float">
           {mode === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900">Login</h2>
+              <h2 className="text-lg font-semibold text-white mb-2">Welcome back</h2>
               <div>
-                <label className="label">Username</label>
-                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required className="input w-full" autoFocus />
+                <label htmlFor="login-username" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Username</label>
+                <input id="login-username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} required
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all"
+                  placeholder="Enter username" autoFocus />
               </div>
               <div>
-                <label className="label">Password</label>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="input w-full" />
+                <label htmlFor="login-password" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Password</label>
+                <input id="login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all"
+                  placeholder="Enter password" />
               </div>
-              <button type="submit" disabled={loading} className="btn-primary w-full">
-                {loading ? 'Logging in...' : 'Login'}
+              <button type="submit" disabled={loading}
+                className="w-full py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-brand-600 to-violet-600 hover:from-brand-500 hover:to-violet-500 shadow-brand-lg active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed mt-2">
+                {loading ? 'Signing in...' : 'Sign In'}
               </button>
-              <button type="button" onClick={() => setMode('forgot')} className="w-full text-sm text-indigo-600 hover:text-indigo-800">
+              <button type="button" onClick={() => setMode('forgot')} className="w-full text-sm text-white/50 hover:text-white/80 transition-colors py-1">
                 Forgot password?
               </button>
             </form>
@@ -117,26 +132,36 @@ export default function LoginPage() {
 
           {mode === 'setup' && (
             <form onSubmit={handleSetup} className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900">First-time Setup</h2>
-              <p className="text-xs text-gray-500">Create your owner account</p>
               <div>
-                <label className="label">Username</label>
-                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required className="input w-full" autoFocus />
+                <h2 className="text-lg font-semibold text-white">First-time Setup</h2>
+                <p className="text-xs text-white/50 mt-1">Create your owner account</p>
               </div>
               <div>
-                <label className="label">Password</label>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={4} className="input w-full" />
+                <label htmlFor="setup-username" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Username</label>
+                <input id="setup-username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} required
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all"
+                  autoFocus />
               </div>
               <div>
-                <label className="label">Security Question *</label>
-                <input type="text" value={securityQuestion} onChange={(e) => setSecurityQuestion(e.target.value)} required placeholder="e.g., Your pet's name?" className="input w-full" />
+                <label htmlFor="setup-password" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Password</label>
+                <input id="setup-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={4}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all" />
               </div>
               <div>
-                <label className="label">Security Answer *</label>
-                <input type="text" value={securityAnswer} onChange={(e) => setSecurityAnswer(e.target.value)} required placeholder="Your answer" className="input w-full" />
-                <p className="text-xs text-gray-400 mt-1">Used for password recovery</p>
+                <label htmlFor="setup-security-question" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Security Question <span className="text-rose-400">*</span></label>
+                <input id="setup-security-question" type="text" value={securityQuestion} onChange={(e) => setSecurityQuestion(e.target.value)} required
+                  placeholder="e.g., Your pet's name?"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all" />
               </div>
-              <button type="submit" disabled={loading} className="btn-primary w-full">
+              <div>
+                <label htmlFor="setup-security-answer" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Security Answer <span className="text-rose-400">*</span></label>
+                <input id="setup-security-answer" type="text" value={securityAnswer} onChange={(e) => setSecurityAnswer(e.target.value)} required
+                  placeholder="Your answer"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all" />
+                <p className="text-[11px] text-white/30 mt-1">Used for password recovery</p>
+              </div>
+              <button type="submit" disabled={loading}
+                className="w-full py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-brand-600 to-violet-600 hover:from-brand-500 hover:to-violet-500 shadow-brand-lg active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed mt-2">
                 {loading ? 'Creating...' : 'Create Account'}
               </button>
             </form>
@@ -146,38 +171,47 @@ export default function LoginPage() {
             <>
               {forgotStep === 'username' ? (
                 <form onSubmit={handleForgotStep1} className="space-y-4">
-                  <h2 className="text-lg font-semibold text-gray-900">Forgot Password</h2>
-                  <p className="text-xs text-gray-500">Enter your username to get your security question</p>
                   <div>
-                    <label className="label">Username</label>
-                    <input type="text" value={forgotUsername} onChange={(e) => setForgotUsername(e.target.value)} required className="input w-full" autoFocus />
+                    <h2 className="text-lg font-semibold text-white">Forgot Password</h2>
+                    <p className="text-xs text-white/50 mt-1">Enter your username to get your security question</p>
                   </div>
-                  <button type="submit" disabled={loading} className="btn-primary w-full">
+                  <div>
+                    <label htmlFor="forgot-username" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Username</label>
+                    <input id="forgot-username" type="text" value={forgotUsername} onChange={(e) => setForgotUsername(e.target.value)} required
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all"
+                      autoFocus />
+                  </div>
+                  <button type="submit" disabled={loading}
+                    className="w-full py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-brand-600 to-violet-600 hover:from-brand-500 hover:to-violet-500 shadow-brand-lg active:scale-[0.98] transition-all duration-150 disabled:opacity-50">
                     {loading ? 'Loading...' : 'Continue'}
                   </button>
-                  <button type="button" onClick={() => setMode('login')} className="w-full text-sm text-gray-500 hover:text-gray-700">
+                  <button type="button" onClick={() => setMode('login')} className="w-full text-sm text-white/50 hover:text-white/80 transition-colors py-1">
                     Back to login
                   </button>
                 </form>
               ) : (
                 <form onSubmit={handleForgotStep2} className="space-y-4">
-                  <h2 className="text-lg font-semibold text-gray-900">Reset Password</h2>
-                  <div className="bg-indigo-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500">Security Question:</p>
-                    <p className="text-sm font-medium text-indigo-800">{forgotQuestion}</p>
+                  <h2 className="text-lg font-semibold text-white">Reset Password</h2>
+                  <div className="bg-brand-950/60 border border-brand-800/50 rounded-xl p-3">
+                    <p className="text-[11px] text-white/50 uppercase tracking-wide font-semibold mb-1">Security Question</p>
+                    <p className="text-sm font-medium text-brand-300">{forgotQuestion}</p>
                   </div>
                   <div>
-                    <label className="label">Your Answer</label>
-                    <input type="text" value={forgotAnswer} onChange={(e) => setForgotAnswer(e.target.value)} required className="input w-full" autoFocus />
+                    <label htmlFor="forgot-answer" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Your Answer</label>
+                    <input id="forgot-answer" type="text" value={forgotAnswer} onChange={(e) => setForgotAnswer(e.target.value)} required
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all"
+                      autoFocus />
                   </div>
                   <div>
-                    <label className="label">New Password</label>
-                    <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={4} className="input w-full" />
+                    <label htmlFor="forgot-new-password" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">New Password</label>
+                    <input id="forgot-new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={4}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all" />
                   </div>
-                  <button type="submit" disabled={loading} className="btn-primary w-full">
+                  <button type="submit" disabled={loading}
+                    className="w-full py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-brand-600 to-violet-600 hover:from-brand-500 hover:to-violet-500 shadow-brand-lg active:scale-[0.98] transition-all duration-150 disabled:opacity-50">
                     {loading ? 'Resetting...' : 'Reset Password'}
                   </button>
-                  <button type="button" onClick={() => { setForgotStep('username'); setMode('login'); }} className="w-full text-sm text-gray-500 hover:text-gray-700">
+                  <button type="button" onClick={() => { setForgotStep('username'); setMode('login'); }} className="w-full text-sm text-white/50 hover:text-white/80 transition-colors py-1">
                     Back to login
                   </button>
                 </form>

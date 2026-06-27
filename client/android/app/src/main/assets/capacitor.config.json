@@ -3,7 +3,7 @@
 	"appName": "JJ CRM",
 	"webDir": "dist",
 	"android": {
-		"allowMixedContent": true,
+		"allowMixedContent": false,
 		"backgroundColor": "#f8fafc"
 	},
 	"plugins": {
@@ -19,6 +19,6 @@
 	},
 	"server": {
 		"androidScheme": "https",
-		"cleartext": true
+		"cleartext": false
 	}
 }

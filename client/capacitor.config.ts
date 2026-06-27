@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'JJ CRM',
   webDir: 'dist',
   android: {
-    allowMixedContent: true,
+    allowMixedContent: false,
     backgroundColor: '#f8fafc'
   },
   plugins: {
@@ -20,9 +20,8 @@ const config: CapacitorConfig = {
     }
   },
   server: {
-    // Allow connections to remote servers
     androidScheme: 'https',
-    cleartext: true
+    cleartext: false
   }
 };
 

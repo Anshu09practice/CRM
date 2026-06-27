@@ -202,7 +202,7 @@ export default function PurchaseBulkUploadModal({ onClose, onUploaded }: Purchas
 
         <div className="p-4">
           {error && (
-            <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>
+            <div className="bg-rose-50 text-red-700 text-sm px-3 py-2 rounded-lg mb-4">{error}</div>
           )}
 
           {/* Step: Upload */}
@@ -230,8 +230,9 @@ export default function PurchaseBulkUploadModal({ onClose, onUploaded }: Purchas
 
               {/* Upload */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Upload CSV or Excel File</label>
+                <label htmlFor="purchase-bulk-file" className="block text-sm font-medium text-slate-700 mb-2">Upload CSV or Excel File</label>
                 <input
+                  id="purchase-bulk-file"
                   ref={fileRef}
                   type="file"
                   accept=".csv,.xlsx,.xls"
@@ -334,3 +335,4 @@ export default function PurchaseBulkUploadModal({ onClose, onUploaded }: Purchas
     </div>
   );
 }
+

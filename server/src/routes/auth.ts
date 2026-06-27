@@ -5,6 +5,15 @@ import { generateToken, generateRefreshToken, verifyToken, authMiddleware, requi
 
 const router = Router();
 
+// Password validation helper
+function validatePassword(password: string): string | null {
+  if (password.length < 8) return 'Password must be at least 8 characters';
+  if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
+  if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter';
+  if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
+  return null;
+}
+
 /**
  * POST /api/auth/setup - First-time setup (create owner account)
  * Only works if no users exist yet
@@ -16,8 +25,9 @@ router.post('/setup', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Username and password are required' });
   }
 
-  if (password.length < 4) {
-    return res.status(400).json({ error: 'Password must be at least 4 characters' });
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({ error: passwordError });
   }
 
   if (!security_question || !security_answer) {
@@ -131,8 +141,9 @@ router.post('/change-password', authMiddleware, async (req: Request, res: Respon
     return res.status(400).json({ error: 'Current and new password are required' });
   }
 
-  if (new_password.length < 4) {
-    return res.status(400).json({ error: 'New password must be at least 4 characters' });
+  const passwordError = validatePassword(new_password);
+  if (passwordError) {
+    return res.status(400).json({ error: passwordError });
   }
 
   const dbUser = queryOne('SELECT * FROM users WHERE id = ?', [authUser.userId]);
@@ -177,8 +188,9 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Security answer and new password are required' });
   }
 
-  if (new_password.length < 4) {
-    return res.status(400).json({ error: 'New password must be at least 4 characters' });
+  const passwordError = validatePassword(new_password);
+  if (passwordError) {
+    return res.status(400).json({ error: passwordError });
   }
 
   const answerValid = await bcrypt.compare(security_answer.trim().toLowerCase(), user.security_answer_hash);
@@ -221,8 +233,9 @@ router.post('/users', authMiddleware, requireRole('owner'), async (req: Request,
     return res.status(400).json({ error: 'Username and password are required' });
   }
 
-  if (password.length < 4) {
-    return res.status(400).json({ error: 'Password must be at least 4 characters' });
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({ error: passwordError });
   }
 
   if (!['owner', 'manager'].includes(role)) {

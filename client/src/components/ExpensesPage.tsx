@@ -68,7 +68,7 @@ export default function ExpensesPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
+        <h1 className="page-title">Expenses</h1>
         <button onClick={() => { setEditing(null); setShowForm(true); }} className="btn-primary text-xs">
           + Add Expense
         </button>
@@ -82,9 +82,9 @@ export default function ExpensesPage() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2">
-        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="input" />
-        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="input" />
-        <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="input">
+        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} aria-label="From date" className="input" />
+        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} aria-label="To date" className="input" />
+        <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} aria-label="Filter by category" className="input">
           <option value="">All Categories</option>
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -98,18 +98,18 @@ export default function ExpensesPage() {
           <p className="text-gray-400 text-center py-8">No expenses for this period</p>
         ) : (
           expenses.map((exp) => (
-            <div key={exp.id} className="bg-white rounded-lg border border-gray-200 p-3 flex items-center justify-between">
+            <div key={exp.id} className="bg-white rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded capitalize">{exp.category}</span>
-                  <span className="text-xs text-gray-400">{exp.expense_date}</span>
+                  <span className="text-xs text-zinc-400">{exp.expense_date}</span>
                 </div>
                 {exp.description && <p className="text-sm text-gray-600 mt-1">{exp.description}</p>}
               </div>
               <div className="flex items-center gap-3">
-                <span className="font-semibold text-gray-900">₹{exp.amount.toLocaleString()}</span>
-                <button onClick={() => { setEditing(exp); setShowForm(true); }} className="text-gray-400 hover:text-indigo-600 text-xs">Edit</button>
-                <button onClick={() => handleDelete(exp.id)} className="text-gray-400 hover:text-red-600 text-xs">Delete</button>
+                <span className="font-semibold text-zinc-900 dark:text-zinc-100">₹{exp.amount.toLocaleString()}</span>
+                <button onClick={() => { setEditing(exp); setShowForm(true); }} className="text-gray-400 hover:text-brand-600 text-xs">Edit</button>
+                <button onClick={() => handleDelete(exp.id)} className="text-gray-400 hover:text-rose-600 text-xs">Delete</button>
               </div>
             </div>
           ))
@@ -119,26 +119,26 @@ export default function ExpensesPage() {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <form onSubmit={handleSave} className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+          <form onSubmit={handleSave} className="card rounded-2xl p-6 w-full max-w-md shadow-xl">
             <h2 className="text-lg font-semibold mb-4">{editing ? 'Edit Expense' : 'Add Expense'}</h2>
             <div className="space-y-3">
               <div>
-                <label className="label">Category</label>
-                <select name="category" defaultValue={editing?.category || 'general'} className="input w-full">
+                <label htmlFor="expense-category" className="label">Category</label>
+                <select id="expense-category" name="category" defaultValue={editing?.category || 'general'} className="input w-full">
                   {categories.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
-                <label className="label">Amount (₹) *</label>
-                <input name="amount" type="number" step="0.01" min="0.01" defaultValue={editing?.amount} required className="input w-full" />
+                <label htmlFor="expense-amount" className="label">Amount (₹) *</label>
+                <input id="expense-amount" name="amount" type="number" step="0.01" min="0.01" defaultValue={editing?.amount} required className="input w-full" />
               </div>
               <div>
-                <label className="label">Description</label>
-                <input name="description" defaultValue={editing?.description} className="input w-full" />
+                <label htmlFor="expense-description" className="label">Description</label>
+                <input id="expense-description" name="description" defaultValue={editing?.description} className="input w-full" />
               </div>
               <div>
-                <label className="label">Date</label>
-                <input name="expense_date" type="date" defaultValue={editing?.expense_date || new Date().toISOString().split('T')[0]} className="input w-full" />
+                <label htmlFor="expense-date" className="label">Date</label>
+                <input id="expense-date" name="expense_date" type="date" defaultValue={editing?.expense_date || new Date().toISOString().split('T')[0]} className="input w-full" />
               </div>
             </div>
             <div className="flex gap-2 mt-4 justify-end">
@@ -151,3 +151,4 @@ export default function ExpensesPage() {
     </div>
   );
 }
+

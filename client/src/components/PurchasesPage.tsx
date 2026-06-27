@@ -118,7 +118,7 @@ export default function PurchasesPage() {
           <p className="text-xs text-slate-500">Total Units</p>
         </div>
         <div className="card text-center col-span-2 sm:col-span-1">
-          <p className="text-2xl font-bold text-red-600">₹{totalCost.toFixed(0)}</p>
+          <p className="text-2xl font-bold text-rose-600">₹{totalCost.toFixed(0)}</p>
           <p className="text-xs text-slate-500">Total Cost</p>
         </div>
       </div>
@@ -174,7 +174,7 @@ export default function PurchasesPage() {
                   </button>
                   <button
                     onClick={() => handleDelete(p)}
-                    className="text-[11px] text-red-600 hover:text-red-800 font-medium"
+                    className="text-[11px] text-rose-600 hover:text-red-800 font-medium"
                   >
                     Del
                   </button>

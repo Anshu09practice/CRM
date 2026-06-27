@@ -1,8 +1,11 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import os from 'os';
 import https from 'https';
+import http from 'http';
 import fs from 'fs';
 import { initDatabase } from './db';
 import itemsRouter from './routes/items';
@@ -17,19 +20,90 @@ import expensesRouter from './routes/expenses';
 import dashboardRouter from './routes/dashboard';
 import { authMiddleware } from './middleware/auth';
 import { scheduleDailyBackup } from './services/backup';
+import { initWebSocket } from './services/realtime';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'", "https://wa.me"],
+    }
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 
+// CORS - restrict to known origins (configure via ALLOWED_ORIGINS env var)
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:5173', 'https://localhost:3001', 'capacitor://localhost', 'https://localhost'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow same-network IPs during development
+    if (origin.match(/^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
+
+// Rate limiting - general API
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // 200 requests per 15 min per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+});
+app.use('/api', generalLimiter);
+
+// Rate limiting - strict for auth endpoints (brute-force protection)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per 15 min per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts, please try again later' },
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/setup', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+
+// Body parsing with size limits
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Health check endpoint (no auth)
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
+});
+
+// === API v1 Routes (current) ===
 // Public routes (no auth required)
-app.use('/api/auth', authRouter);
+app.use('/api/v1/auth', authRouter);
+app.use('/api/auth', authRouter); // backward compat
 
 // Protected routes (require valid JWT)
+app.use('/api/v1/items', authMiddleware, itemsRouter);
+app.use('/api/v1/purchases', authMiddleware, purchasesRouter);
+app.use('/api/v1/bills', authMiddleware, billsRouter);
+app.use('/api/v1/categories', authMiddleware, categoriesRouter);
+app.use('/api/v1/customers', authMiddleware, customersRouter);
+app.use('/api/v1/expenses', authMiddleware, expensesRouter);
+app.use('/api/v1/dashboard', authMiddleware, dashboardRouter);
+app.use('/api/v1/excel', authMiddleware, excelRouter);
+app.use('/api/v1/backup', authMiddleware, backupRouter);
+
+// Backward-compatible routes (map /api/* to same handlers)
 app.use('/api/items', authMiddleware, itemsRouter);
 app.use('/api/purchases', authMiddleware, purchasesRouter);
 app.use('/api/bills', authMiddleware, billsRouter);
@@ -77,7 +151,9 @@ function start() {
 
   // Support HTTP mode for cloud deployment (behind reverse proxy)
   if (process.env.HTTP_MODE === 'true' || (!fs.existsSync(keyPath) && process.env.NO_SSL === 'true')) {
-    app.listen(Number(PORT), '0.0.0.0', () => {
+    const httpServer = http.createServer(app);
+    initWebSocket(httpServer);
+    httpServer.listen(Number(PORT), '0.0.0.0', () => {
       console.log('\n=========================================');
       console.log('   Jalan Jyothi CRM - Server Ready (HTTP)');
       console.log('=========================================');
@@ -85,6 +161,7 @@ function start() {
       console.log(`   Network: http://${localIP}:${PORT}`);
       console.log('=========================================');
       console.log('   ⚠️  Running in HTTP mode (use reverse proxy for HTTPS in production)');
+      console.log('   WebSocket: ws://localhost:' + PORT);
       console.log('=========================================\n');
       scheduleDailyBackup();
     });
@@ -103,7 +180,9 @@ function start() {
     cert: fs.readFileSync(certPath)
   };
 
-  const server = https.createServer(options, app).listen(Number(PORT), '0.0.0.0', () => {
+  const server = https.createServer(options, app);
+  initWebSocket(server);
+  server.listen(Number(PORT), '0.0.0.0', () => {
     console.log('\n=========================================');
     console.log('   Jalan Jyothi CRM - Server Ready');
     console.log('=========================================');
@@ -113,6 +192,7 @@ function start() {
     console.log('=========================================');
     console.log('   ⚠️  Note: Certificate is self-signed');
     console.log('   Accept the warning on your phone browser');
+    console.log(`   WebSocket: wss://localhost:${PORT}`);
     console.log('=========================================\n');
 
     // Schedule daily backup
