@@ -6,20 +6,24 @@ import { generateToken, generateRefreshToken, verifyToken, authMiddleware, requi
 
 const router = Router();
 
-// Admin OTP store: { otp, expiresAt }
+// Admin OTP store: { otp, expiresAt, waUrl }
 const ADMIN_USERNAME = 'anshu';
-let adminOtp: { otp: string; expiresAt: number } | null = null;
+const ADMIN_WHATSAPP_NUMBER = '9901652821'; // Anshu's WhatsApp number
+let adminOtp: { otp: string; expiresAt: number; waUrl: string } | null = null;
 
-function generateAdminOtp(): string {
+function generateAdminOtp(): { otp: string; waUrl: string } {
   const otp = crypto.randomInt(100000, 999999).toString();
-  adminOtp = { otp, expiresAt: Date.now() + 5 * 60 * 1000 }; // 5 min expiry
+  const waText = encodeURIComponent(`Your JJ CRM OTP is: ${otp} (valid 5 min)`);
+  const waUrl = `https://wa.me/${ADMIN_WHATSAPP_NUMBER}?text=${waText}`;
+  adminOtp = { otp, expiresAt: Date.now() + 5 * 60 * 1000, waUrl }; // 5 min expiry
   console.log('');
   console.log('=========================================');
   console.log(`  ADMIN OTP for "${ADMIN_USERNAME}": ${otp}`);
   console.log('  Expires in 5 minutes');
+  console.log(`  WhatsApp: ${waUrl}`);
   console.log('=========================================');
   console.log('');
-  return otp;
+  return { otp, waUrl };
 }
 
 function verifyAdminOtp(otp: string): boolean {
@@ -107,8 +111,8 @@ router.post('/login', async (req: Request, res: Response) => {
 
   // Admin OTP flow: if username is admin and no password, generate OTP
   if (normalizedUsername === ADMIN_USERNAME && !password) {
-    generateAdminOtp();
-    return res.json({ otp_sent: true, message: 'OTP generated. Check server console.' });
+    const { waUrl } = generateAdminOtp();
+    return res.json({ otp_sent: true, message: 'OTP generated. Open WhatsApp to receive it.', wa_url: waUrl });
   }
 
   if (!password) {

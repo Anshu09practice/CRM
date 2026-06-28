@@ -171,6 +171,7 @@ export default function CustomersPage() {
                               Record Payment
                             </button>
                             <select
+                              aria-label="Payment status"
                               value={b.payment_status}
                               onChange={async (e) => {
                                 try {

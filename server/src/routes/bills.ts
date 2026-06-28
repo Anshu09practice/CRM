@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { queryAll, queryOne, runQuery, runTransaction } from '../db';
 import { notifyBillCreated, notifyStockUpdate, notifyPaymentReceived } from '../services/realtime';
 import { auditLog } from '../middleware/auth';
+import { encryptPII, decryptPII } from '../services/crypto';
 import crypto from 'crypto';
 
 const router = Router();
@@ -104,23 +105,27 @@ router.post('/', (req: Request, res: Response) => {
   // Auto-link or create customer
   let resolvedCustomerId = customer_id || null;
   if (!resolvedCustomerId && customer_name && customer_name.trim()) {
-    // Try to find existing customer by phone (phone is unique key)
+    // Try to find existing customer by phone (scan-decrypt, handles both encrypted and legacy plaintext)
     if (customer_phone && customer_phone.trim()) {
-      const existingByPhone = queryOne('SELECT * FROM customers WHERE phone = ?', [customer_phone.trim()]);
+      const allCustomers = queryAll('SELECT * FROM customers') as any[];
+      const existingByPhone = allCustomers.find(
+        c => decryptPII(c.phone || '') === customer_phone.trim()
+      );
       if (existingByPhone) {
         resolvedCustomerId = existingByPhone.id;
-        // Update name/address if changed
-        if (existingByPhone.name !== customer_name.trim() || (customer_address && existingByPhone.address !== customer_address)) {
+        // Update name/address if changed (re-encrypt address)
+        const decryptedAddress = decryptPII(existingByPhone.address || '');
+        if (existingByPhone.name !== customer_name.trim() || (customer_address && decryptedAddress !== customer_address)) {
           runQuery(
             'UPDATE customers SET name = ?, address = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            [customer_name.trim(), customer_address || existingByPhone.address, existingByPhone.id]
+            [customer_name.trim(), encryptPII(customer_address || decryptedAddress), existingByPhone.id]
           );
         }
       } else {
-        // Create new customer
+        // Create new customer with encrypted PII
         const newCust = runQuery(
           'INSERT INTO customers (name, phone, address, notes) VALUES (?, ?, ?, ?)',
-          [customer_name.trim(), customer_phone.trim(), customer_address || '', '']
+          [customer_name.trim(), encryptPII(customer_phone.trim()), encryptPII(customer_address || ''), '']
         );
         resolvedCustomerId = newCust.lastInsertRowid;
       }
@@ -133,7 +138,7 @@ router.post('/', (req: Request, res: Response) => {
         // Create new customer with name only (prevents orphan bills)
         const newCust = runQuery(
           'INSERT INTO customers (name, phone, address, notes) VALUES (?, ?, ?, ?)',
-          [customer_name.trim(), '', customer_address || '', '']
+          [customer_name.trim(), '', encryptPII(customer_address || ''), '']
         );
         resolvedCustomerId = newCust.lastInsertRowid;
       }

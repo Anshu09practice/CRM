@@ -67,8 +67,9 @@ export default function PaymentModal({ bill, onClose, onPaymentRecorded }: Payme
 
           {/* Amount */}
           <div>
-            <label className="label">Payment Amount (₹) *</label>
+            <label htmlFor="payment-amount" className="label">Payment Amount (₹) *</label>
             <input
+              id="payment-amount"
               type="number"
               value={amount || ''}
               onChange={e => setAmount(parseFloat(e.target.value) || 0)}
@@ -82,8 +83,8 @@ export default function PaymentModal({ bill, onClose, onPaymentRecorded }: Payme
 
           {/* Method */}
           <div>
-            <label className="label">Payment Method</label>
-            <select value={method} onChange={e => setMethod(e.target.value)} className="input-field">
+            <label htmlFor="payment-method" className="label">Payment Method</label>
+            <select id="payment-method" value={method} onChange={e => setMethod(e.target.value)} className="input-field">
               <option value="cash">Cash</option>
               <option value="upi">UPI</option>
               <option value="card">Card</option>
@@ -94,8 +95,8 @@ export default function PaymentModal({ bill, onClose, onPaymentRecorded }: Payme
 
           {/* Date */}
           <div>
-            <label className="label">Payment Date</label>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input-field" />
+            <label htmlFor="payment-date" className="label">Payment Date</label>
+            <input id="payment-date" type="date" value={date} onChange={e => setDate(e.target.value)} className="input-field" />
           </div>
 
           {/* Notes */}

@@ -10,12 +10,12 @@ function generateBillHtml(bill: Bill): string {
   const items = bill.items || [];
   const itemRows = items.map((item, idx) => `
     <tr style="border-bottom:1px solid #e2e8f0;">
-      <td style="padding:6px 4px;">${idx + 1}</td>
-      <td style="padding:6px 4px;font-weight:500;">${item.item_name}</td>
-      <td style="padding:6px 4px;text-align:center;">${item.package_quantity_grams}g</td>
-      <td style="padding:6px 4px;text-align:center;">${item.quantity}</td>
-      <td style="padding:6px 4px;text-align:right;">₹${item.selling_price.toFixed(2)}</td>
-      <td style="padding:6px 4px;text-align:right;">₹${item.line_total.toFixed(2)}</td>
+      <td style="padding:8px 6px;">${idx + 1}</td>
+      <td style="padding:8px 6px;font-weight:500;word-break:break-word;">${item.item_name}</td>
+      <td style="padding:8px 6px;text-align:center;">${item.package_quantity_grams}g</td>
+      <td style="padding:8px 6px;text-align:center;">${item.quantity}</td>
+      <td style="padding:8px 6px;text-align:right;">₹${item.selling_price.toFixed(2)}</td>
+      <td style="padding:8px 6px;text-align:right;">₹${item.line_total.toFixed(2)}</td>
     </tr>
   `).join('');
 
@@ -30,10 +30,20 @@ function generateBillHtml(bill: Bill): string {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Bill ${bill.bill_number}</title>
   <style>
-    body { font-family: sans-serif; padding: 16px; margin: 0; font-size: 14px; color: #1e293b; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-    th { text-align: left; padding: 8px 4px; }
-    @media print { body { padding: 0; } }
+    body { font-family: sans-serif; padding: 16px; margin: 0; font-size: 13px; color: #1e293b; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; table-layout: fixed; }
+    th { text-align: left; padding: 8px 6px; word-break: break-word; }
+    td { word-break: break-word; }
+    col.col-num   { width: 5%; }
+    col.col-item  { width: 40%; }
+    col.col-pkg   { width: 12%; }
+    col.col-qty   { width: 8%; }
+    col.col-price { width: 17%; }
+    col.col-amt   { width: 18%; }
+    @media print {
+      body { padding: 0; font-size: 12px; }
+      @page { size: auto; margin: 5mm; }
+    }
   </style>
 </head>
 <body>
@@ -41,7 +51,7 @@ function generateBillHtml(bill: Bill): string {
     <h1 style="margin:0;font-size:20px;letter-spacing:1px;">JALAN JYOTHI</h1>
     <p style="margin:4px 0 0;font-size:12px;color:#64748b;">Quality Spices & Masala Products</p>
   </div>
-  <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:12px;">
+  <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;font-size:13px;margin-bottom:12px;">
     <div>
       <p style="margin:2px 0;"><strong>Bill No:</strong> ${bill.bill_number}</p>
       <p style="margin:2px 0;"><strong>Date:</strong> ${bill.bill_date}</p>
@@ -54,6 +64,9 @@ function generateBillHtml(bill: Bill): string {
     </div>
   </div>
   <table>
+    <colgroup>
+      <col class="col-num"><col class="col-item"><col class="col-pkg"><col class="col-qty"><col class="col-price"><col class="col-amt">
+    </colgroup>
     <thead>
       <tr style="border-top:2px solid #1e293b;border-bottom:2px solid #1e293b;">
         <th>#</th><th>Item</th><th style="text-align:center;">Pkg</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Price</th><th style="text-align:right;">Amount</th>
@@ -171,7 +184,7 @@ export default function BillPrintView({ bill, onClose }: BillPrintViewProps) {
           </div>
 
           {/* Bill Info */}
-          <div className="flex justify-between text-sm mb-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-3 text-sm mb-4">
             <div>
               <p><strong>Bill No:</strong> {bill.bill_number}</p>
               <p><strong>Date:</strong> {bill.bill_date}</p>
@@ -187,7 +200,15 @@ export default function BillPrintView({ bill, onClose }: BillPrintViewProps) {
           </div>
 
           {/* Items Table */}
-          <table className="w-full text-sm border-collapse mb-4">
+          <table className="w-full text-sm border-collapse mb-4" style={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '5%' }} />
+              <col style={{ width: '40%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '17%' }} />
+              <col style={{ width: '18%' }} />
+            </colgroup>
             <thead>
               <tr className="border-y-2 border-slate-800">
                 <th className="py-2 text-left">#</th>
@@ -202,7 +223,7 @@ export default function BillPrintView({ bill, onClose }: BillPrintViewProps) {
               {items.map((item, idx) => (
                 <tr key={item.id || idx} className="border-b border-slate-200">
                   <td className="py-2">{idx + 1}</td>
-                  <td className="py-2 font-medium">{item.item_name}</td>
+                  <td className="py-2 font-medium break-words">{item.item_name}</td>
                   <td className="py-2 text-center">{item.package_quantity_grams}g</td>
                   <td className="py-2 text-center">{item.quantity}</td>
                   <td className="py-2 text-right">₹{item.selling_price.toFixed(2)}</td>
