@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import { api, Bill, StockItem } from '../services/api';
 import BillForm from './BillForm';
 import BillPrintView from './BillPrintView';
+import PaymentModal from './PaymentModal';
 
 export default function BillingPage() {
   const [bills, setBills] = useState<Bill[]>([]);
@@ -10,9 +11,11 @@ export default function BillingPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
   const [printingBill, setPrintingBill] = useState<Bill | null>(null);
+  const [payingBill, setPayingBill] = useState<Bill | null>(null);
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [stock, setStock] = useState<StockItem[]>([]);
 
@@ -22,7 +25,8 @@ export default function BillingPage() {
       const res = await api.getBills({
         search: search || undefined,
         from_date: dateFrom || undefined,
-        to_date: dateTo || undefined
+        to_date: dateTo || undefined,
+        payment_status: statusFilter || undefined
       });
       setBills(res.bills);
       setTotalRevenue(res.totalRevenue);
@@ -31,7 +35,7 @@ export default function BillingPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, dateFrom, dateTo]);
+  }, [search, dateFrom, dateTo, statusFilter]);
 
   const fetchStock = useCallback(async () => {
     try {
@@ -137,6 +141,18 @@ export default function BillingPage() {
             className="input-field pl-9"
           />
         </div>
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="input-field w-auto"
+          title="Payment status"
+        >
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="partial">Partial</option>
+          <option value="paid">Paid</option>
+          <option value="overdue">Overdue</option>
+        </select>
         <input
           type="date"
           value={dateFrom}
@@ -157,15 +173,15 @@ export default function BillingPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="metric-card-emerald text-center p-4">
           <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{bills.length}</p>
-          <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wide font-semibold">Total Bills</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 uppercase tracking-wide font-semibold">Total Bills</p>
         </div>
         <div className="metric-card-sky text-center p-4">
           <p className="text-2xl font-bold text-sky-700 dark:text-sky-400">₹{totalRevenue.toFixed(0)}</p>
-          <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wide font-semibold">Revenue</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 uppercase tracking-wide font-semibold">Revenue</p>
         </div>
         <div className="metric-card-violet text-center p-4 col-span-2 sm:col-span-1">
           <p className="text-2xl font-bold text-violet-700 dark:text-violet-400">{stock.length}</p>
-          <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wide font-semibold">Items in Stock</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 uppercase tracking-wide font-semibold">Items in Stock</p>
         </div>
       </div>
 
@@ -195,7 +211,14 @@ export default function BillingPage() {
       {/* Bills List */}
       {!loading && bills.length > 0 && (
         <div className="space-y-2">
-          {bills.map(b => (
+          {bills.map(b => {
+            const statusColors: Record<string, string> = {
+              paid: 'badge-success',
+              partial: 'badge-warning',
+              pending: 'badge-neutral',
+              overdue: 'badge-danger'
+            };
+            return (
             <div key={b.id} className="card p-4 hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200">
               <div className="flex items-start gap-3">
                 <div className="flex-1 min-w-0">
@@ -204,21 +227,47 @@ export default function BillingPage() {
                     <span className="text-[10px] font-mono badge-neutral">
                       {b.bill_number}
                     </span>
+                    <span className={`${statusColors[b.payment_status] || 'badge-neutral'} capitalize`}>
+                      {b.payment_status}
+                    </span>
                     {b.whatsapp_sent === 1 && (
                       <span className="badge-success">Sent</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-zinc-500 mt-1 flex-wrap">
+                  <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400 mt-1 flex-wrap">
                     <span>{b.bill_date}</span>
                     {b.customer_phone && <span>{b.customer_phone}</span>}
                     {b.discount_percent > 0 && (
                       <span className="badge-warning">-{b.discount_percent}%</span>
+                    )}
+                    {b.amount_paid > 0 && b.payment_status !== 'paid' && (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">Paid ₹{b.amount_paid.toFixed(0)} / ₹{b.total.toFixed(0)}</span>
                     )}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-bold text-lg text-emerald-700 dark:text-emerald-400">₹{b.total.toFixed(0)}</p>
                   <div className="flex gap-2 mt-1.5 justify-end flex-wrap">
+                    {b.payment_status !== 'paid' && (
+                      <button onClick={() => setPayingBill(b)} className="btn-ghost py-1 px-2 text-[11px] text-amber-600 dark:text-amber-400 font-semibold">Pay</button>
+                    )}
+                    <select
+                      value={b.payment_status}
+                      onClick={e => e.stopPropagation()}
+                      onChange={async (e) => {
+                        try {
+                          await api.updateBillStatus(b.id, e.target.value);
+                          toast.success('Status updated');
+                          fetchBills();
+                        } catch (err: any) { toast.error(err.message); }
+                      }}
+                      className="text-[11px] bg-transparent border border-zinc-200 dark:border-zinc-700 rounded-lg px-1.5 py-1 text-zinc-600 dark:text-zinc-300 cursor-pointer"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="partial">Partial</option>
+                      <option value="paid">Paid</option>
+                      <option value="overdue">Overdue</option>
+                    </select>
                     <button onClick={() => handlePrint(b)} className="btn-ghost py-1 px-2 text-[11px]">Print</button>
                     <button onClick={() => handleWhatsApp(b)} className="btn-ghost py-1 px-2 text-[11px] text-emerald-600 dark:text-emerald-400">WA</button>
                     <button
@@ -234,7 +283,8 @@ export default function BillingPage() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -257,6 +307,13 @@ export default function BillingPage() {
       )}
       {printingBill && (
         <BillPrintView bill={printingBill} onClose={() => setPrintingBill(null)} />
+      )}
+      {payingBill && (
+        <PaymentModal
+          bill={payingBill}
+          onClose={() => setPayingBill(null)}
+          onPaymentRecorded={() => { fetchBills(); }}
+        />
       )}
     </div>
   );

@@ -71,7 +71,7 @@ export default function PurchasesPage() {
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-slate-900">Purchases</h2>
+        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Purchases</h2>
         <div className="flex gap-2">
           <button onClick={() => setShowBulkUpload(true)} className="btn-secondary text-sm">
             Bulk Upload
@@ -110,16 +110,16 @@ export default function PurchasesPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
         <div className="card text-center">
-          <p className="text-2xl font-bold text-brand-600">{purchases.length}</p>
-          <p className="text-xs text-slate-500">Purchases</p>
+          <p className="text-2xl font-bold text-brand-600 dark:text-brand-400">{purchases.length}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Purchases</p>
         </div>
         <div className="card text-center">
-          <p className="text-2xl font-bold text-orange-600">{totalQty}</p>
-          <p className="text-xs text-slate-500">Total Units</p>
+          <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{totalQty}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Total Units</p>
         </div>
         <div className="card text-center col-span-2 sm:col-span-1">
-          <p className="text-2xl font-bold text-rose-600">₹{totalCost.toFixed(0)}</p>
-          <p className="text-xs text-slate-500">Total Cost</p>
+          <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">₹{totalCost.toFixed(0)}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Total Cost</p>
         </div>
       </div>
 
@@ -134,8 +134,8 @@ export default function PurchasesPage() {
       {!loading && purchases.length === 0 && (
         <div className="text-center py-12">
           <p className="text-4xl mb-3">🛒</p>
-          <p className="text-slate-600 font-medium">No purchases recorded</p>
-          <p className="text-sm text-slate-500 mt-1">Record your first purchase</p>
+          <p className="text-zinc-700 dark:text-zinc-300 font-medium">No purchases recorded</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Record your first purchase</p>
           <button onClick={() => setShowForm(true)} className="btn-primary text-sm mt-4">
             + Record Purchase
           </button>
@@ -149,32 +149,32 @@ export default function PurchasesPage() {
             <div key={p.id} className="card flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-slate-900 truncate">{p.item_name}</p>
+                  <p className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">{p.item_name}</p>
                   <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                    p.packaging_style === 'packet' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                    p.packaging_style === 'packet' ? 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400' : 'bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-400'
                   }`}>
                     {p.package_quantity_grams}g
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                   <span>{p.purchase_date}</span>
-                  <span>Qty: <strong className="text-slate-700">{p.quantity}</strong></span>
+                  <span>Qty: <strong className="text-zinc-700 dark:text-zinc-300">{p.quantity}</strong></span>
                   <span>@ ₹{p.purchase_cost}/unit</span>
                   {p.notes && <span className="italic truncate">"{p.notes}"</span>}
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="font-bold text-slate-900">₹{p.total_cost.toFixed(0)}</p>
+                <p className="font-bold text-zinc-900 dark:text-zinc-100">₹{p.total_cost.toFixed(0)}</p>
                 <div className="flex gap-1 mt-1">
                   <button
                     onClick={() => setEditingPurchase(p)}
-                    className="text-[11px] text-brand-600 hover:text-brand-800 font-medium"
+                    className="text-[11px] text-brand-600 dark:text-brand-400 hover:text-brand-800 font-medium"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(p)}
-                    className="text-[11px] text-rose-600 hover:text-red-800 font-medium"
+                    className="text-[11px] text-rose-600 dark:text-rose-400 hover:text-red-800 font-medium"
                   >
                     Del
                   </button>

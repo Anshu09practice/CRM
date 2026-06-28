@@ -33,7 +33,7 @@ export default function ItemCard({ item, onEdit, onDelete }: ItemCardProps) {
         </div>
 
         {/* Sizing info */}
-        <p className="text-xs text-zinc-500 dark:text-zinc-500 mb-3 bg-zinc-50 dark:bg-zinc-800/60 px-2.5 py-1.5 rounded-lg">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3 bg-zinc-50 dark:bg-zinc-800/60 px-2.5 py-1.5 rounded-lg">
           {formatSizing(item.packaging_style, item.package_quantity_grams)}
         </p>
 

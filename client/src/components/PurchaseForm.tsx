@@ -76,21 +76,21 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white w-full sm:max-w-lg sm:rounded-xl rounded-t-xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-zinc-900 w-full sm:max-w-lg sm:rounded-xl rounded-t-xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between rounded-t-xl">
-          <h2 className="text-lg font-semibold">{purchase ? 'Edit Purchase' : 'Record Purchase'}</h2>
-          <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+        <div className="sticky top-0 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-4 py-3 flex items-center justify-between rounded-t-xl">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{purchase ? 'Edit Purchase' : 'Record Purchase'}</h2>
+          <button onClick={onCancel} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-2xl leading-none">&times;</button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {error && (
-            <div className="bg-rose-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>
+            <div className="bg-rose-50 dark:bg-rose-950/40 text-red-700 dark:text-rose-300 text-sm px-3 py-2 rounded-lg">{error}</div>
           )}
 
           {/* Item Selection */}
           <div className="relative">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Select Item *</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Select Item *</label>
             <input
               type="text"
               value={searchTerm || (selectedItem?.item_name || '')}
@@ -100,16 +100,16 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
               placeholder="Type to search items..."
             />
             {showDropdown && filteredItems.length > 0 && (
-              <div className="absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              <div className="absolute z-20 w-full mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                 {filteredItems.map(item => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => handleSelectItem(item)}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-0"
+                    className="w-full text-left px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-700 border-b border-zinc-100 dark:border-zinc-700 last:border-0"
                   >
-                    <span className="font-medium text-sm">{item.item_name}</span>
-                    <span className="text-xs text-slate-500 ml-2">
+                    <span className="font-medium text-sm text-zinc-900 dark:text-zinc-100">{item.item_name}</span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400 ml-2">
                       {item.package_quantity_grams}g · ₹{item.purchase_cost}/unit
                     </span>
                   </button>
@@ -117,7 +117,7 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
               </div>
             )}
             {selectedItem && (
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                 {selectedItem.package_quantity_grams}g · {selectedItem.packaging_style === 'packet' ? 'Packet' : 'Standing Pack'} · Default cost: ₹{selectedItem.purchase_cost}
               </p>
             )}
@@ -125,7 +125,7 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
 
           {/* Quantity */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Quantity (units) *</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Quantity (units) *</label>
             <input
               type="number"
               value={formData.quantity || ''}
@@ -139,7 +139,7 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
 
           {/* Purchase Cost */}
           <div>
-            <label htmlFor="purchase-cost" className="block text-sm font-medium text-slate-700 mb-1">Purchase Cost (₹ per unit)</label>
+            <label htmlFor="purchase-cost" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Purchase Cost (₹ per unit)</label>
             <input
               id="purchase-cost"
               type="number"
@@ -149,16 +149,16 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
               min="0"
               step="0.01"
             />
-            <p className="text-xs text-slate-500 mt-1">Pre-filled from item's default cost. Change if this purchase was different.</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Pre-filled from item's default cost. Change if this purchase was different.</p>
           </div>
 
           {/* Total Preview */}
           {formData.quantity > 0 && formData.purchase_cost > 0 && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-              <p className="text-sm font-medium text-orange-800">
+            <div className="bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 rounded-lg p-3">
+              <p className="text-sm font-medium text-orange-800 dark:text-orange-300">
                 Total: ₹{totalCost.toFixed(2)}
               </p>
-              <p className="text-xs text-orange-600">
+              <p className="text-xs text-orange-600 dark:text-orange-400">
                 {formData.quantity} units × ₹{formData.purchase_cost} per unit
               </p>
             </div>
@@ -166,7 +166,7 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
 
           {/* Purchase Date */}
           <div>
-            <label htmlFor="purchase-date" className="block text-sm font-medium text-slate-700 mb-1">Purchase Date</label>
+            <label htmlFor="purchase-date" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Purchase Date</label>
             <input
               id="purchase-date"
               type="date"
@@ -178,7 +178,7 @@ export default function PurchaseForm({ items, purchase, onSubmit, onCancel }: Pu
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optional)</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Notes (optional)</label>
             <input
               type="text"
               value={formData.notes}

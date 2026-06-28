@@ -21,6 +21,7 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
     packaging_style: 'packet' as 'packet' | 'standing_package',
     category_id: null as number | null,
   });
+  const [propagateCost, setPropagateCost] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -81,7 +82,7 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
     setSubmitting(true);
     try {
       if (item?.id) {
-        await api.updateItem(item.id, formData);
+        await api.updateItem(item.id, { ...formData, propagate_cost: propagateCost });
         toast.success('Item updated');
       } else {
         await api.createItem(formData);
@@ -100,14 +101,14 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white w-full sm:max-w-lg sm:rounded-xl rounded-t-xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between rounded-t-xl">
-          <h2 className="text-lg font-semibold">{item ? 'Edit Item' : 'Add New Item'}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      <div className="bg-white dark:bg-zinc-900 w-full sm:max-w-lg sm:rounded-xl rounded-t-xl max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-4 py-3 flex items-center justify-between rounded-t-xl">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{item ? 'Edit Item' : 'Add New Item'}</h2>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-2xl leading-none">&times;</button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {error && <div className="bg-rose-50 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && <div className="bg-rose-50 dark:bg-rose-950/40 text-red-700 dark:text-rose-300 text-sm px-3 py-2 rounded-lg">{error}</div>}
 
           <div>
             <label className="label">Item Name *</label>
@@ -117,7 +118,7 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
           <div>
             <label className="label">SKU ID</label>
             <input type="text" name="sku_id" value={formData.sku_id} onChange={handleChange} className="input w-full" placeholder="e.g., SKU-0001 (auto-generated)" />
-            <p className="text-xs text-slate-500 mt-1">Unique product identifier. Auto-generated if left empty.</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Unique product identifier. Auto-generated if left empty.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -143,11 +144,11 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
           </div>
 
           {/* Sizing Preview */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-sm font-medium text-blue-800">📦 Sizing Calculation</p>
-            <p className="text-sm text-blue-700 mt-1">{sizingText}</p>
+          <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-lg p-3">
+            <p className="text-sm font-medium text-blue-800 dark:text-blue-300">📦 Sizing Calculation</p>
+            <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">{sizingText}</p>
             {formData.packaging_style === 'packet' && (
-              <p className="text-xs text-blue-600 mt-1">{sizing.packets_per_bundle} packets per bundle = {sizing.bundle_weight_grams}g total</p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">{sizing.packets_per_bundle} packets per bundle = {sizing.bundle_weight_grams}g total</p>
             )}
           </div>
 
@@ -167,10 +168,27 @@ export default function ItemForm({ item, categories, onClose, onSaved }: ItemFor
           </div>
 
           {formData.selling_price > 0 && formData.purchase_cost > 0 && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <p className="text-sm text-green-800">
+            <div className="bg-green-50 dark:bg-emerald-950/40 border border-green-200 dark:border-emerald-900/50 rounded-lg p-3">
+              <p className="text-sm text-green-800 dark:text-emerald-300">
                 Profit: ₹{(formData.selling_price - formData.purchase_cost).toFixed(2)} per unit
                 ({((formData.selling_price - formData.purchase_cost) / formData.selling_price * 100).toFixed(1)}% margin)
+              </p>
+            </div>
+          )}
+
+          {item && (
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-lg p-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={propagateCost}
+                  onChange={(e) => setPropagateCost(e.target.checked)}
+                  className="w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="text-sm font-medium text-amber-800 dark:text-amber-300">Update purchase cost in existing records</span>
+              </label>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 ml-6">
+                Name &amp; packaging are always synced. Check this to also update historical purchase costs.
               </p>
             </div>
           )}

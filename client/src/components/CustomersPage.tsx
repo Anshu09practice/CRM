@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { api, Customer } from '../services/api';
+import { api, Customer, Bill } from '../services/api';
+import PaymentModal from './PaymentModal';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -8,6 +9,7 @@ export default function CustomersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [payingBill, setPayingBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { loadCustomers(); }, [search]);
@@ -149,13 +151,44 @@ export default function CustomersPage() {
             {selectedCustomer.bills && selectedCustomer.bills.length > 0 && (
               <div>
                 <h4 className="card-title mb-2">Purchase History</h4>
-                <div className="space-y-1 max-h-48 overflow-y-auto">
+                <div className="space-y-1 max-h-64 overflow-y-auto">
                   {selectedCustomer.bills.map((b: any) => (
-                    <div key={b.id} className="flex justify-between text-xs py-1.5 border-b border-zinc-100 dark:border-zinc-800">
-                      <span className="text-zinc-600 dark:text-zinc-400 font-medium">{b.bill_number}</span>
-                      <span className="text-zinc-400">{b.bill_date}</span>
-                      <span className="font-semibold text-zinc-800 dark:text-zinc-200">₹{b.total}</span>
-                      <span className={`capitalize font-medium ${b.payment_status === 'paid' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>{b.payment_status}</span>
+                    <div key={b.id} className="text-xs py-2 px-2 border-b border-zinc-100 dark:border-zinc-800 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                      <div className="flex justify-between items-center">
+                        <span className="text-zinc-600 dark:text-zinc-400 font-medium">{b.bill_number}</span>
+                        <span className="text-zinc-400">{b.bill_date}</span>
+                        <span className="font-semibold text-zinc-800 dark:text-zinc-200">₹{b.total}</span>
+                        <span className={`capitalize font-medium ${b.payment_status === 'paid' ? 'text-emerald-600 dark:text-emerald-400' : b.payment_status === 'overdue' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>{b.payment_status}</span>
+                      </div>
+                      {b.payment_status !== 'paid' && (
+                        <div className="flex items-center justify-between mt-1.5">
+                          <span className="text-zinc-400">Paid ₹{b.amount_paid || 0} / ₹{b.total}</span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setPayingBill(b as Bill)}
+                              className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 font-semibold"
+                            >
+                              Record Payment
+                            </button>
+                            <select
+                              value={b.payment_status}
+                              onChange={async (e) => {
+                                try {
+                                  await api.updateBillStatus(b.id, e.target.value);
+                                  toast.success('Status updated');
+                                  viewDetails(selectedCustomer);
+                                } catch (err: any) { toast.error(err.message); }
+                              }}
+                              className="bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-1 py-0.5 text-zinc-600 dark:text-zinc-300 cursor-pointer"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="partial">Partial</option>
+                              <option value="paid">Paid</option>
+                              <option value="overdue">Overdue</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -199,6 +232,14 @@ export default function CustomersPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {payingBill && (
+        <PaymentModal
+          bill={payingBill}
+          onClose={() => setPayingBill(null)}
+          onPaymentRecorded={() => { if (selectedCustomer) viewDetails(selectedCustomer); loadCustomers(); }}
+        />
       )}
     </div>
   );

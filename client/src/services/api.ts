@@ -223,7 +223,7 @@ const serverApi = {
     return handleResponse(res);
   },
 
-  async updateItem(id: number, item: Partial<Item>): Promise<Item> {
+  async updateItem(id: number, item: Partial<Item> & { propagate_cost?: boolean }): Promise<Item> {
     const res = await fetch(`${get_API_BASE()}/items/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(item)
@@ -414,6 +414,14 @@ const serverApi = {
 
   async markWhatsAppSent(id: number): Promise<void> {
     const res = await fetch(`${get_API_BASE()}/bills/${id}/whatsapp`, { method: 'PATCH', headers: { ...getAuthHeaders() } });
+    return handleResponse(res);
+  },
+
+  async updateBillStatus(billId: number, payment_status: string): Promise<Bill> {
+    const res = await fetch(`${get_API_BASE()}/bills/${billId}/status`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ payment_status })
+    });
     return handleResponse(res);
   },
 

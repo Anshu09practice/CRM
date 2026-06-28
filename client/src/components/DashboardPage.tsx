@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { api, DashboardSummary } from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { useTheme } from '../context/ThemeContext';
 import { SkeletonDashboard } from './Skeleton';
 
 export default function DashboardPage() {
+  const { resolvedTheme } = useTheme();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [topItems, setTopItems] = useState<{ topItems: any[]; bottomItems: any[]; margins: any[] } | null>(null);
   const [salesTrend, setSalesTrend] = useState<any[]>([]);
@@ -69,11 +71,11 @@ export default function DashboardPage() {
           {salesTrend.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={salesTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#71717a' }} tickFormatter={(v) => v.slice(5)} />
-                <YAxis tick={{ fontSize: 10, fill: '#71717a' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={resolvedTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'} />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: resolvedTheme === 'dark' ? '#a1a1aa' : '#71717a' }} tickFormatter={(v) => v.slice(5)} />
+                <YAxis tick={{ fontSize: 10, fill: resolvedTheme === 'dark' ? '#a1a1aa' : '#71717a' }} />
                 <Tooltip
-                  contentStyle={{ background: 'rgba(255,255,255,0.95)', border: '1px solid #e4e4e7', borderRadius: '12px', fontSize: '12px' }}
+                  contentStyle={{ background: resolvedTheme === 'dark' ? 'rgba(24,24,27,0.95)' : 'rgba(255,255,255,0.95)', border: resolvedTheme === 'dark' ? '1px solid #3f3f46' : '1px solid #e4e4e7', borderRadius: '12px', fontSize: '12px', color: resolvedTheme === 'dark' ? '#fafafa' : '#18181b' }}
                   formatter={(v: any) => `₹${Number(v).toLocaleString()}`}
                 />
                 <Line type="monotone" dataKey="revenue" stroke="url(#brandGrad)" strokeWidth={2.5} dot={false} />
@@ -94,11 +96,11 @@ export default function DashboardPage() {
           {topItems && topItems.topItems.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={topItems.topItems}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-                <XAxis dataKey="item_name" tick={{ fontSize: 9, fill: '#71717a' }} angle={-20} textAnchor="end" height={50} />
-                <YAxis tick={{ fontSize: 10, fill: '#71717a' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={resolvedTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'} />
+                <XAxis dataKey="item_name" tick={{ fontSize: 9, fill: resolvedTheme === 'dark' ? '#a1a1aa' : '#71717a' }} angle={-20} textAnchor="end" height={50} />
+                <YAxis tick={{ fontSize: 10, fill: resolvedTheme === 'dark' ? '#a1a1aa' : '#71717a' }} />
                 <Tooltip
-                  contentStyle={{ background: 'rgba(255,255,255,0.95)', border: '1px solid #e4e4e7', borderRadius: '12px', fontSize: '12px' }}
+                  contentStyle={{ background: resolvedTheme === 'dark' ? 'rgba(24,24,27,0.95)' : 'rgba(255,255,255,0.95)', border: resolvedTheme === 'dark' ? '1px solid #3f3f46' : '1px solid #e4e4e7', borderRadius: '12px', fontSize: '12px', color: resolvedTheme === 'dark' ? '#fafafa' : '#18181b' }}
                 />
                 <Bar dataKey="total_qty" fill="url(#barGrad)" radius={[6, 6, 0, 0]} />
                 <defs>
@@ -139,7 +141,7 @@ export default function DashboardPage() {
                 <div key={i} className="flex items-center justify-between py-2 px-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
                   <span className="text-sm text-zinc-700 dark:text-zinc-300">{item.item_name}</span>
                   <div className="text-right">
-                    <span className={`text-sm font-bold ${item.margin_percent > 20 ? 'text-emerald-600' : item.margin_percent > 10 ? 'text-amber-600' : 'text-rose-600'}`}>
+                    <span className={`text-sm font-bold ${item.margin_percent > 20 ? 'text-emerald-600 dark:text-emerald-400' : item.margin_percent > 10 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
                       {item.margin_percent}%
                     </span>
                     <span className="text-xs text-zinc-400 ml-2">₹{item.selling_price - item.purchase_cost}/unit</span>
@@ -186,9 +188,9 @@ function MetricCard({ title, value, subtitle, color }: { title: string; value: s
 
   return (
     <div className={cardClass[color] || 'metric-card-zinc'}>
-      <p className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-500 uppercase tracking-wider">{title}</p>
+      <p className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">{title}</p>
       <p className={`text-xl lg:text-2xl font-bold mt-1.5 ${valueColor[color] || valueColor.zinc}`}>{value}</p>
-      <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">{subtitle}</p>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{subtitle}</p>
     </div>
   );
 }

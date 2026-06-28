@@ -208,7 +208,7 @@ export default function Layout({ children }: LayoutProps) {
                   <item.icon active={isActive} />
                 </div>
                 <span className={`text-[10px] font-semibold mt-0.5 transition-colors ${
-                  isActive ? 'text-brand-600 dark:text-brand-400' : 'text-zinc-400 dark:text-zinc-600'
+                  isActive ? 'text-brand-600 dark:text-brand-400' : 'text-zinc-400 dark:text-zinc-500'
                 }`}>
                   {item.label}
                 </span>

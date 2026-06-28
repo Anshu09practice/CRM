@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { queryAll, queryOne, runQuery } from '../db';
+import { queryAll, queryOne, runQuery, runTransaction } from '../db';
 import { CreateItemInput, calculateSizing } from '../services/sizing';
 import { requireRole } from '../middleware/auth';
 
@@ -306,7 +306,7 @@ router.put('/:id', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Item not found' });
   }
 
-  const { item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, category_id, sku_id } = req.body;
+  const { item_name, package_quantity_grams, purchase_cost, selling_price, mrp, packaging_style, category_id, sku_id, propagate_cost } = req.body;
 
   // Validation
   if (!item_name || !item_name.trim()) {
@@ -325,27 +325,42 @@ router.put('/:id', (req: Request, res: Response) => {
   // Auto-calculate sizing
   const { packets_per_bundle, bundle_weight_grams } = calculateSizing(packaging_style, package_quantity_grams);
 
-  runQuery(
-    `UPDATE items SET
-      item_name = ?, package_quantity_grams = ?, purchase_cost = ?,
-      selling_price = ?, mrp = ?, packaging_style = ?,
-      packets_per_bundle = ?, bundle_weight_grams = ?, category_id = ?, sku_id = ?,
-      updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?`,
-    [
-      item_name.trim(),
-      package_quantity_grams,
-      purchase_cost || 0,
-      selling_price || 0,
-      mrp || 0,
-      packaging_style,
-      packets_per_bundle,
-      bundle_weight_grams,
-      category_id || null,
-      sku_id ? String(sku_id).trim() : null,
-      req.params.id
-    ]
-  );
+  runTransaction(() => {
+    runQuery(
+      `UPDATE items SET
+        item_name = ?, package_quantity_grams = ?, purchase_cost = ?,
+        selling_price = ?, mrp = ?, packaging_style = ?,
+        packets_per_bundle = ?, bundle_weight_grams = ?, category_id = ?, sku_id = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?`,
+      [
+        item_name.trim(),
+        package_quantity_grams,
+        purchase_cost || 0,
+        selling_price || 0,
+        mrp || 0,
+        packaging_style,
+        packets_per_bundle,
+        bundle_weight_grams,
+        category_id || null,
+        sku_id ? String(sku_id).trim() : null,
+        req.params.id
+      ]
+    );
+
+    // Propagate item details to existing purchase records
+    if (propagate_cost) {
+      runQuery(
+        `UPDATE purchases SET item_name = ?, package_quantity_grams = ?, packaging_style = ?, purchase_cost = ? WHERE item_id = ?`,
+        [item_name.trim(), package_quantity_grams, packaging_style, purchase_cost || 0, req.params.id]
+      );
+    } else {
+      runQuery(
+        `UPDATE purchases SET item_name = ?, package_quantity_grams = ?, packaging_style = ? WHERE item_id = ?`,
+        [item_name.trim(), package_quantity_grams, packaging_style, req.params.id]
+      );
+    }
+  });
 
   const updated = queryOne('SELECT * FROM items WHERE id = ?', [req.params.id]);
   res.json(updated);

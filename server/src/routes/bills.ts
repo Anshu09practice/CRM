@@ -129,6 +129,13 @@ router.post('/', (req: Request, res: Response) => {
       const existingByName = queryOne('SELECT * FROM customers WHERE LOWER(name) = LOWER(?)', [customer_name.trim()]);
       if (existingByName) {
         resolvedCustomerId = existingByName.id;
+      } else {
+        // Create new customer with name only (prevents orphan bills)
+        const newCust = runQuery(
+          'INSERT INTO customers (name, phone, address, notes) VALUES (?, ?, ?, ?)',
+          [customer_name.trim(), '', customer_address || '', '']
+        );
+        resolvedCustomerId = newCust.lastInsertRowid;
       }
     }
   }
@@ -440,6 +447,24 @@ router.patch('/:id/whatsapp', (req: Request, res: Response) => {
   }
   runQuery('UPDATE bills SET whatsapp_sent = 1 WHERE id = ?', [req.params.id]);
   res.json({ message: 'WhatsApp status updated' });
+});
+
+// PATCH /api/bills/:id/status - Manually update payment status
+router.patch('/:id/status', (req: Request, res: Response) => {
+  const existing = queryOne('SELECT * FROM bills WHERE id = ?', [req.params.id]);
+  if (!existing) {
+    return res.status(404).json({ error: 'Bill not found' });
+  }
+
+  const { payment_status } = req.body;
+  const validStatuses = ['pending', 'partial', 'paid', 'overdue'];
+  if (!payment_status || !validStatuses.includes(payment_status)) {
+    return res.status(400).json({ error: `Status must be one of: ${validStatuses.join(', ')}` });
+  }
+
+  runQuery('UPDATE bills SET payment_status = ? WHERE id = ?', [payment_status, req.params.id]);
+  const updated = queryOne('SELECT * FROM bills WHERE id = ?', [req.params.id]);
+  res.json(updated);
 });
 
 // DELETE /api/bills/:id - Delete bill and restore stock

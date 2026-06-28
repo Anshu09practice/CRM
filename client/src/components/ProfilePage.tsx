@@ -228,20 +228,20 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-lg mx-auto">
-      <h2 className="text-xl font-bold text-slate-900 mb-6">Profile</h2>
+      <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-6">Profile</h2>
 
       {/* User Info Card */}
       <div className="card mb-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-indigo-100 rounded-full flex items-center justify-center">
-            <span className="text-2xl font-bold text-brand-600">
+          <div className="w-14 h-14 bg-indigo-100 dark:bg-indigo-950/50 rounded-full flex items-center justify-center">
+            <span className="text-2xl font-bold text-brand-600 dark:text-brand-400">
               {user?.username?.charAt(0).toUpperCase()}
             </span>
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-slate-900">{user?.username}</h3>
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{user?.username}</h3>
             <span className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded-full ${
-              isOwner ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+              isOwner ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400' : 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400'
             }`}>
               {user?.role === 'owner' ? '👑 Owner' : '👤 Manager'}
             </span>
@@ -251,19 +251,19 @@ export default function ProfilePage() {
 
       {/* Account Details */}
       <div className="card mb-4">
-        <h4 className="text-sm font-semibold text-slate-700 mb-3">Account Details</h4>
+        <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">Account Details</h4>
         <div className="space-y-3">
-          <div className="flex justify-between items-center py-2 border-b border-slate-100">
-            <span className="text-sm text-slate-500">Username</span>
-            <span className="text-sm font-medium text-slate-900">{user?.username}</span>
+          <div className="flex justify-between items-center py-2 border-b border-zinc-100 dark:border-zinc-800">
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">Username</span>
+            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{user?.username}</span>
           </div>
-          <div className="flex justify-between items-center py-2 border-b border-slate-100">
-            <span className="text-sm text-slate-500">Role</span>
-            <span className="text-sm font-medium text-slate-900 capitalize">{user?.role}</span>
+          <div className="flex justify-between items-center py-2 border-b border-zinc-100 dark:border-zinc-800">
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">Role</span>
+            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100 capitalize">{user?.role}</span>
           </div>
-          <div className="flex justify-between items-center py-2 border-b border-slate-100">
-            <span className="text-sm text-slate-500">Access Level</span>
-            <span className="text-sm font-medium text-slate-900">
+          <div className="flex justify-between items-center py-2 border-b border-zinc-100 dark:border-zinc-800">
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">Access Level</span>
+            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
               {isOwner ? 'Full Access' : 'Limited Access'}
             </span>
           </div>
@@ -273,22 +273,22 @@ export default function ProfilePage() {
       {/* Change Password */}
       <div className="card mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold text-slate-700">Security</h4>
+          <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Security</h4>
         </div>
 
         {!showChangePassword ? (
           <button
             onClick={() => setShowChangePassword(true)}
-            className="w-full text-left flex items-center justify-between py-3 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+            className="w-full text-left flex items-center justify-between py-3 px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
           >
             <div className="flex items-center gap-3">
               <span className="text-lg">🔒</span>
               <div>
-                <p className="text-sm font-medium text-slate-900">Change Password</p>
-                <p className="text-xs text-slate-500">Update your account password</p>
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Change Password</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Update your account password</p>
               </div>
             </div>
-            <span className="text-slate-400">›</span>
+            <span className="text-zinc-400">›</span>
           </button>
         ) : (
           <form onSubmit={handleChangePassword} className="space-y-3">
@@ -336,9 +336,9 @@ export default function ProfilePage() {
       {/* Server Connection */}
       <div className="card mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold text-slate-700">Server Connection</h4>
+          <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Server Connection</h4>
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-            localStorage.getItem('jj_server_url') ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+            localStorage.getItem('jj_server_url') ? 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
           }`}>
             {localStorage.getItem('jj_server_url') ? '🟢 Online' : '📴 Offline'}
           </span>
@@ -347,28 +347,28 @@ export default function ProfilePage() {
         {!showServerConfig ? (
           <div>
             {localStorage.getItem('jj_server_url') && (
-              <p className="text-xs text-slate-500 mb-2 break-all">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2 break-all">
                 Connected to: <span className="font-mono">{localStorage.getItem('jj_server_url')}</span>
               </p>
             )}
             <button
               onClick={() => setShowServerConfig(true)}
-              className="w-full text-left flex items-center justify-between py-3 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+              className="w-full text-left flex items-center justify-between py-3 px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <span className="text-lg">🌐</span>
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Configure Server</p>
-                  <p className="text-xs text-slate-500">Connect to central server for shared data</p>
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Configure Server</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Connect to central server for shared data</p>
                 </div>
               </div>
-              <span className="text-slate-400">›</span>
+              <span className="text-zinc-400">›</span>
             </button>
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
-              <p className="text-[11px] text-blue-700">
+            <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-lg p-2">
+              <p className="text-[11px] text-blue-700 dark:text-blue-300">
                 Enter your server URL to sync data across all devices. Leave empty for offline mode.
               </p>
             </div>
@@ -401,20 +401,20 @@ export default function ProfilePage() {
       {/* Master Backup */}
       <div className="card mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold text-slate-700">Data & Backup</h4>
+          <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Data & Backup</h4>
         </div>
         <button
           onClick={handleMasterBackup}
           disabled={backingUp}
-          className="w-full text-left flex items-center justify-between py-3 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+          className="w-full text-left flex items-center justify-between py-3 px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
         >
           <div className="flex items-center gap-3">
             <span className="text-lg">💾</span>
             <div>
-              <p className="text-sm font-medium text-slate-900">
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                 {backingUp ? 'Creating Backup...' : 'Master Backup'}
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Export all data (Inventory, Purchases, Bills, Customers, Expenses) as JSON
               </p>
             </div>
@@ -422,29 +422,29 @@ export default function ProfilePage() {
           {backingUp ? (
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600 shrink-0"></div>
           ) : (
-            <span className="text-slate-400 shrink-0">›</span>
+            <span className="text-zinc-400 shrink-0">›</span>
           )}
         </button>
-        <p className="text-[11px] text-slate-400 mt-2 px-3">
+        <p className="text-[11px] text-zinc-400 mt-2 px-3">
           Saved to: Documents/Jalan Jyothi/ folder on your device
         </p>
 
         {/* Divider */}
-        <div className="border-t border-slate-100 my-2"></div>
+        <div className="border-t border-zinc-100 dark:border-zinc-800 my-2"></div>
 
         {/* Restore Backup */}
         <button
           onClick={handleRestoreBackup}
           disabled={restoring}
-          className="w-full text-left flex items-center justify-between py-3 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+          className="w-full text-left flex items-center justify-between py-3 px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
         >
           <div className="flex items-center gap-3">
             <span className="text-lg">📂</span>
             <div>
-              <p className="text-sm font-medium text-slate-900">
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                 {restoring ? 'Restoring Data...' : 'Restore Backup'}
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Import a backup JSON file to restore all data (for migration)
               </p>
             </div>
@@ -452,25 +452,25 @@ export default function ProfilePage() {
           {restoring ? (
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600 shrink-0"></div>
           ) : (
-            <span className="text-slate-400 shrink-0">›</span>
+            <span className="text-zinc-400 shrink-0">›</span>
           )}
         </button>
-        <p className="text-[11px] text-slate-400 mt-2 px-3">
+        <p className="text-[11px] text-zinc-400 mt-2 px-3">
           Upload a previously exported JSON backup to restore data on this device
         </p>
       </div>
 
       {/* App Info */}
       <div className="card mb-4">
-        <h4 className="text-sm font-semibold text-slate-700 mb-3">App Info</h4>
+        <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">App Info</h4>
         <div className="space-y-2">
-          <div className="flex justify-between items-center py-2 border-b border-slate-100">
-            <span className="text-sm text-slate-500">App Name</span>
-            <span className="text-sm font-medium text-slate-900">Jalan Jyothi CRM</span>
+          <div className="flex justify-between items-center py-2 border-b border-zinc-100 dark:border-zinc-800">
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">App Name</span>
+            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Jalan Jyothi CRM</span>
           </div>
-          <div className="flex justify-between items-center py-2 border-b border-slate-100">
-            <span className="text-sm text-slate-500">Version</span>
-            <span className="text-sm font-medium text-slate-900">1.0.0</span>
+          <div className="flex justify-between items-center py-2 border-b border-zinc-100 dark:border-zinc-800">
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">Version</span>
+            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">1.0.0</span>
           </div>
         </div>
       </div>
@@ -478,7 +478,7 @@ export default function ProfilePage() {
       {/* Logout Button */}
       <button
         onClick={handleLogout}
-        className="w-full py-3 px-4 bg-rose-50 hover:bg-rose-100 text-red-700 font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+        className="w-full py-3 px-4 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-950/60 text-red-700 dark:text-rose-400 font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />

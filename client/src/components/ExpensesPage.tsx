@@ -75,9 +75,9 @@ export default function ExpensesPage() {
       </div>
 
       {/* Summary */}
-      <div className="bg-orange-50 border border-orange-100 rounded-xl p-4">
-        <p className="text-sm text-orange-700">Total expenses ({fromDate} to {toDate})</p>
-        <p className="text-2xl font-bold text-orange-800">₹{totalAmount.toLocaleString()}</p>
+      <div className="bg-orange-50 dark:bg-orange-950/40 border border-orange-100 dark:border-orange-900/50 rounded-xl p-4">
+        <p className="text-sm text-orange-700 dark:text-orange-300">Total expenses ({fromDate} to {toDate})</p>
+        <p className="text-2xl font-bold text-orange-800 dark:text-orange-200">₹{totalAmount.toLocaleString()}</p>
       </div>
 
       {/* Filters */}
@@ -93,23 +93,23 @@ export default function ExpensesPage() {
       {/* Expense List */}
       <div className="space-y-2">
         {loading ? (
-          [...Array(4)].map((_, i) => <div key={i} className="h-14 bg-gray-200 rounded-lg animate-pulse" />)
+          [...Array(4)].map((_, i) => <div key={i} className="h-14 bg-zinc-200 dark:bg-zinc-800 rounded-lg animate-pulse" />)
         ) : expenses.length === 0 ? (
-          <p className="text-gray-400 text-center py-8">No expenses for this period</p>
+          <p className="text-zinc-400 text-center py-8">No expenses for this period</p>
         ) : (
           expenses.map((exp) => (
-            <div key={exp.id} className="bg-white rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 flex items-center justify-between">
+            <div key={exp.id} className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded capitalize">{exp.category}</span>
+                  <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded capitalize">{exp.category}</span>
                   <span className="text-xs text-zinc-400">{exp.expense_date}</span>
                 </div>
-                {exp.description && <p className="text-sm text-gray-600 mt-1">{exp.description}</p>}
+                {exp.description && <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">{exp.description}</p>}
               </div>
               <div className="flex items-center gap-3">
                 <span className="font-semibold text-zinc-900 dark:text-zinc-100">₹{exp.amount.toLocaleString()}</span>
-                <button onClick={() => { setEditing(exp); setShowForm(true); }} className="text-gray-400 hover:text-brand-600 text-xs">Edit</button>
-                <button onClick={() => handleDelete(exp.id)} className="text-gray-400 hover:text-rose-600 text-xs">Delete</button>
+                <button onClick={() => { setEditing(exp); setShowForm(true); }} className="text-zinc-400 hover:text-brand-600 dark:hover:text-brand-400 text-xs">Edit</button>
+                <button onClick={() => handleDelete(exp.id)} className="text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 text-xs">Delete</button>
               </div>
             </div>
           ))
