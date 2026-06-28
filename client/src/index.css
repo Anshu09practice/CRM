@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply text-zinc-800 dark:text-zinc-100 antialiased bg-zinc-50 dark:bg-zinc-950 min-h-screen transition-colors duration-200;
+    @apply text-stone-800 dark:text-stone-100 antialiased bg-stone-50 dark:bg-stone-950 min-h-screen transition-colors duration-200;
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -67,7 +67,7 @@
            bg-white dark:bg-zinc-900
            focus:outline-none focus:ring-2 focus:ring-brand-500/25 focus:border-brand-400 dark:focus:border-brand-500
            placeholder-zinc-400 dark:placeholder-zinc-600
-           transition-all duration-150 text-sm
+           transition-all duration-150 text-base
            text-zinc-900 dark:text-zinc-100;
   }
 
@@ -150,6 +150,11 @@
            overflow-hidden animate-slide-up;
   }
 
+  .modal-container::before {
+    content: '';
+    @apply block w-8 h-1 bg-zinc-300 dark:bg-zinc-600 rounded-full mx-auto mt-3 sm:hidden;
+  }
+
   .modal-header {
     @apply flex items-center justify-between px-5 py-4
            border-b border-zinc-100 dark:border-zinc-800;
@@ -175,6 +180,65 @@
     @apply border-t border-zinc-100 dark:border-zinc-800 my-4;
   }
 
+  /* ─── Scroll utilities ────────────────────────────────────── */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* ─── M3 Filter Chips ─────────────────────────────────────── */
+  .m3-chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
+           bg-stone-100 dark:bg-stone-800
+           text-stone-600 dark:text-stone-400
+           border border-stone-200 dark:border-stone-700
+           transition-all duration-150 cursor-pointer select-none
+           hover:bg-stone-200 dark:hover:bg-stone-700
+           active:scale-[0.96];
+  }
+
+  .m3-chip-active {
+    @apply m3-chip
+           bg-brand-100 dark:bg-brand-900/40
+           text-brand-700 dark:text-brand-300
+           border-brand-200 dark:border-brand-800/60
+           hover:bg-brand-200 dark:hover:bg-brand-800/40;
+  }
+
+  /* ─── M3 FAB ──────────────────────────────────────────────── */
+  .m3-fab {
+    @apply fixed bottom-[5.5rem] right-4 z-20
+           w-14 h-14 rounded-2xl
+           bg-brand-600 hover:bg-brand-700
+           text-white
+           flex items-center justify-center
+           shadow-float hover:shadow-brand
+           transition-all duration-200
+           active:scale-[0.93];
+  }
+
+  /* ─── M3 Surface containers ───────────────────────────────── */
+  .m3-surface-variant {
+    @apply bg-stone-100 dark:bg-stone-800/60 rounded-2xl;
+  }
+
+  .m3-primary-container {
+    @apply bg-brand-50 dark:bg-brand-950/40 rounded-2xl;
+  }
+
+  /* ─── Bottom sheet ────────────────────────────────────────── */
+  .bottom-sheet {
+    @apply bg-white dark:bg-stone-900
+           w-full
+           rounded-t-3xl
+           shadow-sheet
+           border-t border-stone-200/50 dark:border-stone-700/50
+           overflow-hidden animate-slide-up-sheet;
+  }
+
+  .bottom-sheet::before {
+    content: '';
+    @apply block w-10 h-1 bg-stone-300 dark:bg-stone-600 rounded-full mx-auto mt-3 mb-1;
+  }
+
   /* ─── Safe areas ──────────────────────────────────────────── */
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -183,4 +247,25 @@
   .safe-area-top {
     padding-top: env(safe-area-inset-top, 0px);
   }
+
+  /* ─── Named gradient backgrounds ─────────────────────────── */
+  .gradient-revenue-card {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 50%, #0d9488 100%);
+  }
+
+  .gradient-login-bg {
+    background: linear-gradient(135deg, #1c1917 0%, #431407 40%, #1c1917 70%, #0c0a09 100%);
+  }
+
+  /* ─── Bill print table ────────────────────────────────────── */
+  .bill-items-table {
+    table-layout: fixed;
+  }
+
+  .bill-col-no    { width: 5%; }
+  .bill-col-item  { width: 40%; }
+  .bill-col-rate  { width: 12%; }
+  .bill-col-qty   { width: 8%; }
+  .bill-col-disc  { width: 17%; }
+  .bill-col-total { width: 18%; }
 }

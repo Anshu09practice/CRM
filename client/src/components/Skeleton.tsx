@@ -9,7 +9,7 @@ interface SkeletonProps {
 export function Skeleton({ className = '' }: SkeletonProps) {
   return (
     <div
-      className={`bg-zinc-200 dark:bg-zinc-700 rounded-xl animate-pulse ${className}`}
+      className={`bg-stone-100 dark:bg-stone-800 rounded-xl animate-pulse ${className}`}
     />
   );
 }

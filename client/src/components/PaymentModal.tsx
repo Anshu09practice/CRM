@@ -46,21 +46,21 @@ export default function PaymentModal({ bill, onClose, onPaymentRecorded }: Payme
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Bill Info */}
-          <div className="bg-zinc-50 dark:bg-zinc-800/60 rounded-xl p-3 space-y-1">
+          <div className="bg-stone-50 dark:bg-stone-800/60 rounded-xl p-3 space-y-1">
             <div className="flex justify-between text-sm">
-              <span className="text-zinc-500 dark:text-zinc-400">Bill</span>
-              <span className="font-semibold text-zinc-900 dark:text-zinc-100">{bill.bill_number}</span>
+              <span className="text-stone-500 dark:text-stone-400">Bill</span>
+              <span className="font-semibold text-stone-900 dark:text-stone-100">{bill.bill_number}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-zinc-500 dark:text-zinc-400">Total</span>
-              <span className="font-semibold text-zinc-900 dark:text-zinc-100">₹{bill.total.toFixed(2)}</span>
+              <span className="text-stone-500 dark:text-stone-400">Total</span>
+              <span className="font-semibold text-stone-900 dark:text-stone-100">₹{bill.total.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-zinc-500 dark:text-zinc-400">Paid</span>
+              <span className="text-stone-500 dark:text-stone-400">Paid</span>
               <span className="font-semibold text-emerald-700 dark:text-emerald-400">₹{(bill.amount_paid || 0).toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sm border-t border-zinc-200 dark:border-zinc-700 pt-1">
-              <span className="text-zinc-500 dark:text-zinc-400 font-semibold">Remaining</span>
+            <div className="flex justify-between text-sm border-t border-stone-200 dark:border-stone-700 pt-1">
+              <span className="text-stone-500 dark:text-stone-400 font-semibold">Remaining</span>
               <span className="font-bold text-rose-700 dark:text-rose-400">₹{remaining.toFixed(2)}</span>
             </div>
           </div>

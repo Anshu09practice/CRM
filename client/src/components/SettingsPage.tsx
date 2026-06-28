@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { api, UserInfo, Category } from '../services/api';
+import DeleteModal from './DeleteModal';
 
 export default function SettingsPage() {
   const { isOwner, user } = useAuth();
@@ -20,7 +21,7 @@ export default function SettingsPage() {
     <div className="space-y-4">
       <h1 className="page-title">Settings</h1>
 
-      <div className="flex gap-2 border-b border-gray-200 pb-2">
+      <div className="flex gap-2 overflow-x-auto no-scrollbar border-b border-stone-200 dark:border-stone-700 pb-2">
         <TabButton active={activeTab === 'users'} onClick={() => setActiveTab('users')}>Users</TabButton>
         <TabButton active={activeTab === 'categories'} onClick={() => setActiveTab('categories')}>Categories</TabButton>
         <TabButton active={activeTab === 'password'} onClick={() => setActiveTab('password')}>Password</TabButton>
@@ -50,6 +51,7 @@ function UsersSection() {
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deletingUser, setDeletingUser] = useState<UserInfo | null>(null);
 
   useEffect(() => { loadUsers(); }, []);
 
@@ -84,36 +86,41 @@ function UsersSection() {
     } catch (e: any) { toast.error(e.message); }
   }
 
-  async function handleDelete(user: UserInfo) {
-    if (!confirm(`Delete user "${user.username}"?`)) return;
+  function handleDelete(user: UserInfo) {
+    setDeletingUser(user);
+  }
+
+  async function confirmDeleteUser() {
+    if (!deletingUser) return;
     try {
-      await api.deleteUser(user.id);
+      await api.deleteUser(deletingUser.id);
       toast.success('User deleted');
       loadUsers();
     } catch (e: any) { toast.error(e.message); }
+    finally { setDeletingUser(null); }
   }
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="font-semibold text-zinc-800 dark:text-zinc-200">User Accounts</h2>
+        <h2 className="font-semibold text-stone-800 dark:text-stone-200">User Accounts</h2>
         <button onClick={() => setShowForm(true)} className="btn-primary text-xs">+ Add User</button>
       </div>
 
       {loading ? <div className="h-20 bg-zinc-200 dark:bg-zinc-800 rounded-lg animate-pulse" /> : (
         <div className="space-y-2">
           {users.map((u) => (
-            <div key={u.id} className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 flex items-center justify-between">
+            <div key={u.id} className="card p-3 flex items-center justify-between">
               <div>
-                <p className="font-medium text-zinc-900 dark:text-zinc-100">{u.username}</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 capitalize">{u.role} • {u.is_active ? 'Active' : 'Inactive'}</p>
-                {u.last_login && <p className="text-xs text-zinc-400">Last login: {new Date(u.last_login).toLocaleDateString()}</p>}
+                <p className="font-medium text-stone-900 dark:text-stone-100">{u.username}</p>
+                <p className="text-xs text-stone-500 dark:text-stone-400 capitalize">{u.role} • {u.is_active ? 'Active' : 'Inactive'}</p>
+                {u.last_login && <p className="text-xs text-stone-400">Last login: {new Date(u.last_login).toLocaleDateString()}</p>}
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => toggleActive(u)} className={`text-xs ${u.is_active ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+              <div className="flex gap-1">
+                <button onClick={() => toggleActive(u)} className={`min-h-[44px] flex items-center px-2 text-xs ${u.is_active ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
                   {u.is_active ? 'Deactivate' : 'Activate'}
                 </button>
-                <button onClick={() => handleDelete(u)} className="text-xs text-rose-600 dark:text-rose-400">Delete</button>
+                <button onClick={() => handleDelete(u)} className="min-h-[44px] flex items-center px-2 text-xs text-rose-600 dark:text-rose-400">Delete</button>
               </div>
             </div>
           ))}
@@ -122,8 +129,8 @@ function UsersSection() {
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <form onSubmit={handleCreate} className="bg-white dark:bg-zinc-900 rounded-xl p-6 w-full max-w-md shadow-xl border border-zinc-200 dark:border-zinc-800">
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Create User</h2>
+          <form onSubmit={handleCreate} className="bg-white dark:bg-stone-900 rounded-2xl p-6 w-full max-w-md shadow-xl border border-stone-200 dark:border-stone-800">
+            <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-4">Create User</h2>
             <div className="space-y-3">
               <div>
                 <label htmlFor="create-username" className="label">Username *</label>
@@ -156,6 +163,13 @@ function UsersSection() {
           </form>
         </div>
       )}
+      {deletingUser && (
+        <DeleteModal
+          itemName={`user "${deletingUser.username}"`}
+          onConfirm={confirmDeleteUser}
+          onCancel={() => setDeletingUser(null)}
+        />
+      )}
     </div>
   );
 }
@@ -164,6 +178,7 @@ function CategoriesSection() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [newName, setNewName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
 
   useEffect(() => { loadCategories(); }, []);
 
@@ -183,18 +198,23 @@ function CategoriesSection() {
     } catch (err: any) { toast.error(err.message || 'Failed to add category'); }
   }
 
-  async function handleDelete(id: number) {
-    if (!confirm('Delete this category? Items in this category will be uncategorized.')) return;
+  function handleDelete(id: number) {
+    setDeletingCategoryId(id);
+  }
+
+  async function confirmDeleteCategory() {
+    if (deletingCategoryId === null) return;
     try {
-      await api.deleteCategory(id);
+      await api.deleteCategory(deletingCategoryId);
       toast.success('Category deleted');
       loadCategories();
     } catch (err: any) { toast.error(err.message || 'Failed to delete category'); }
+    finally { setDeletingCategoryId(null); }
   }
 
   return (
     <div className="space-y-4">
-      <h2 className="font-semibold text-zinc-800 dark:text-zinc-200">Item Categories</h2>
+      <h2 className="font-semibold text-stone-800 dark:text-stone-200">Item Categories</h2>
 
       <div className="flex gap-2">
         <input
@@ -207,19 +227,26 @@ function CategoriesSection() {
         <button type="button" onClick={handleAdd} className="btn-primary text-xs">Add</button>
       </div>
 
-      {loading ? <div className="h-20 bg-zinc-200 dark:bg-zinc-800 rounded-lg animate-pulse" /> : (
+      {loading ? <div className="h-20 bg-stone-100 dark:bg-stone-800 rounded-lg animate-pulse" /> : (
         <div className="space-y-2">
           {categories.map((c) => (
-            <div key={c.id} className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 flex items-center justify-between">
+            <div key={c.id} className="card p-3 flex items-center justify-between">
               <div>
-                <p className="font-medium text-zinc-900 dark:text-zinc-100">{c.name}</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">{c.item_count || 0} items</p>
+                <p className="font-medium text-stone-900 dark:text-stone-100">{c.name}</p>
+                <p className="text-xs text-stone-500 dark:text-stone-400">{c.item_count || 0} items</p>
               </div>
-              <button onClick={() => handleDelete(c.id)} className="text-xs text-rose-600 dark:text-rose-400 hover:text-red-800">Delete</button>
+              <button onClick={() => handleDelete(c.id)} className="min-h-[44px] flex items-center px-2 text-xs text-rose-600 dark:text-rose-400 hover:text-red-800">Delete</button>
             </div>
           ))}
-          {categories.length === 0 && <p className="text-zinc-400 text-sm">No categories yet</p>}
+          {categories.length === 0 && <p className="text-stone-400 text-sm">No categories yet</p>}
         </div>
+      )}
+      {deletingCategoryId !== null && (
+        <DeleteModal
+          itemName="this category"
+          onConfirm={confirmDeleteCategory}
+          onCancel={() => setDeletingCategoryId(null)}
+        />
       )}
     </div>
   );
@@ -247,7 +274,7 @@ function PasswordSection() {
 
   return (
     <div className="max-w-md">
-      <h2 className="font-semibold text-zinc-800 dark:text-zinc-200 mb-4">Change Password</h2>
+      <h2 className="font-semibold text-stone-800 dark:text-stone-200 mb-4">Change Password</h2>
       <form onSubmit={handleChange} className="space-y-3">
         <div>
           <label htmlFor="change-current-password" className="label">Current Password</label>

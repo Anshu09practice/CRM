@@ -16,6 +16,7 @@ export default function ProfilePage() {
   const [serverUrl, setServerUrl] = useState(() => localStorage.getItem('jj_server_url') || '');
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
+  const [pendingRestoreFile, setPendingRestoreFile] = useState<File | null>(null);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,51 +149,49 @@ export default function ProfilePage() {
     }
   };
 
-  const handleRestoreBackup = async () => {
-    // Create a file input to pick the JSON file
+  const handleRestoreBackup = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    input.onchange = async (e: any) => {
+    input.onchange = (e: any) => {
       const file = e.target.files?.[0];
       if (!file) return;
-
-      if (!confirm('⚠️ This will REPLACE all existing data with the backup data. Are you sure you want to continue?')) {
-        return;
-      }
-
-      setRestoring(true);
-      try {
-        const text = await file.text();
-        const backupData = JSON.parse(text);
-
-        // Validate backup format
-        if (!backupData.data && !backupData.tables) {
-          throw new Error('Invalid backup file format. Please select a valid Jalan Jyothi CRM backup JSON file.');
-        }
-
-        if (isOfflineMode()) {
-          // Offline mode: restore to IndexedDB
-          const dataToRestore = backupData.data || backupData.tables;
-          const result = await localApi.restoreBackup(dataToRestore);
-          toast.success(`Restored ${result.restored} records! Refresh the app to see updated data.`, { duration: 5000 });
-        } else {
-          // Online mode: send to server
-          const result = await api.restoreBackup(backupData);
-          toast.success(`${result.message}`, { duration: 5000 });
-        }
-      } catch (err: any) {
-        if (err instanceof SyntaxError) {
-          toast.error('Invalid JSON file. Please select a valid backup file.');
-        } else {
-          toast.error('Restore failed: ' + err.message);
-        }
-      } finally {
-        setRestoring(false);
-      }
+      setPendingRestoreFile(file);
     };
     input.click();
   };
+
+  async function confirmRestore() {
+    if (!pendingRestoreFile) return;
+    const file = pendingRestoreFile;
+    setPendingRestoreFile(null);
+    setRestoring(true);
+    try {
+      const text = await file.text();
+      const backupData = JSON.parse(text);
+
+      if (!backupData.data && !backupData.tables) {
+        throw new Error('Invalid backup file format. Please select a valid Jalan Jyothi CRM backup JSON file.');
+      }
+
+      if (isOfflineMode()) {
+        const dataToRestore = backupData.data || backupData.tables;
+        const result = await localApi.restoreBackup(dataToRestore);
+        toast.success(`Restored ${result.restored} records! Refresh the app to see updated data.`, { duration: 5000 });
+      } else {
+        const result = await api.restoreBackup(backupData);
+        toast.success(`${result.message}`, { duration: 5000 });
+      }
+    } catch (err: any) {
+      if (err instanceof SyntaxError) {
+        toast.error('Invalid JSON file. Please select a valid backup file.');
+      } else {
+        toast.error('Restore failed: ' + err.message);
+      }
+    } finally {
+      setRestoring(false);
+    }
+  }
 
   const handleSaveServerUrl = async () => {
     const url = serverUrl.trim().replace(/\/+$/, ''); // Remove trailing slashes
@@ -221,25 +220,23 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    if (confirm('Are you sure you want to log out?')) {
-      logout();
-    }
+    logout();
   };
 
   return (
     <div className="max-w-lg mx-auto">
-      <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-6">Profile</h2>
+      <h2 className="text-xl font-bold text-stone-900 dark:text-stone-100 mb-6">Profile</h2>
 
       {/* User Info Card */}
       <div className="card mb-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-indigo-100 dark:bg-indigo-950/50 rounded-full flex items-center justify-center">
+          <div className="w-14 h-14 bg-brand-100 dark:bg-brand-900/40 rounded-full flex items-center justify-center">
             <span className="text-2xl font-bold text-brand-600 dark:text-brand-400">
               {user?.username?.charAt(0).toUpperCase()}
             </span>
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{user?.username}</h3>
+            <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">{user?.username}</h3>
             <span className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded-full ${
               isOwner ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400' : 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400'
             }`}>
@@ -251,19 +248,19 @@ export default function ProfilePage() {
 
       {/* Account Details */}
       <div className="card mb-4">
-        <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">Account Details</h4>
+        <h4 className="text-sm font-semibold text-stone-700 dark:text-stone-300 mb-3">Account Details</h4>
         <div className="space-y-3">
-          <div className="flex justify-between items-center py-2 border-b border-zinc-100 dark:border-zinc-800">
-            <span className="text-sm text-zinc-500 dark:text-zinc-400">Username</span>
-            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{user?.username}</span>
+          <div className="flex justify-between items-center py-2 border-b border-stone-100 dark:border-stone-800">
+            <span className="text-sm text-stone-500 dark:text-stone-400">Username</span>
+            <span className="text-sm font-medium text-stone-900 dark:text-stone-100">{user?.username}</span>
           </div>
-          <div className="flex justify-between items-center py-2 border-b border-zinc-100 dark:border-zinc-800">
-            <span className="text-sm text-zinc-500 dark:text-zinc-400">Role</span>
-            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100 capitalize">{user?.role}</span>
+          <div className="flex justify-between items-center py-2 border-b border-stone-100 dark:border-stone-800">
+            <span className="text-sm text-stone-500 dark:text-stone-400">Role</span>
+            <span className="text-sm font-medium text-stone-900 dark:text-stone-100 capitalize">{user?.role}</span>
           </div>
-          <div className="flex justify-between items-center py-2 border-b border-zinc-100 dark:border-zinc-800">
-            <span className="text-sm text-zinc-500 dark:text-zinc-400">Access Level</span>
-            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          <div className="flex justify-between items-center py-2 border-b border-stone-100 dark:border-stone-800">
+            <span className="text-sm text-stone-500 dark:text-stone-400">Access Level</span>
+            <span className="text-sm font-medium text-stone-900 dark:text-stone-100">
               {isOwner ? 'Full Access' : 'Limited Access'}
             </span>
           </div>
@@ -273,19 +270,19 @@ export default function ProfilePage() {
       {/* Change Password */}
       <div className="card mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Security</h4>
+          <h4 className="text-sm font-semibold text-stone-700 dark:text-stone-300">Security</h4>
         </div>
 
         {!showChangePassword ? (
           <button
             onClick={() => setShowChangePassword(true)}
-            className="w-full text-left flex items-center justify-between py-3 px-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-lg">🔒</span>
-              <div>
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Change Password</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">Update your account password</p>
+            className="w-full text-left flex items-center justify-between py-3 px-3 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-lg">🔒</span>
+                <div>
+                  <p className="text-sm font-medium text-stone-900 dark:text-stone-100">Change Password</p>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">Update your account password</p>
               </div>
             </div>
             <span className="text-zinc-400">›</span>
@@ -336,9 +333,9 @@ export default function ProfilePage() {
       {/* Server Connection */}
       <div className="card mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Server Connection</h4>
+          <h4 className="text-sm font-semibold text-stone-700 dark:text-stone-300">Server Connection</h4>
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-            localStorage.getItem('jj_server_url') ? 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+            localStorage.getItem('jj_server_url') ? 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400' : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400'
           }`}>
             {localStorage.getItem('jj_server_url') ? '🟢 Online' : '📴 Offline'}
           </span>
@@ -485,6 +482,27 @@ export default function ProfilePage() {
         </svg>
         Log Out
       </button>
+
+      {pendingRestoreFile && (
+        <div className="modal-overlay">
+          <div className="modal-container max-w-sm mx-4 sm:mx-0">
+            <div className="p-6 text-center">
+              <div className="w-14 h-14 bg-amber-100 dark:bg-amber-950/50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-amber-200 dark:border-amber-900/50">
+                <span className="text-3xl">⚠️</span>
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">Restore Backup?</h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+                This will <strong className="text-rose-600 dark:text-rose-400">replace all existing data</strong> with <strong className="text-zinc-700 dark:text-zinc-300">{pendingRestoreFile.name}</strong>.<br />
+                <span className="text-xs">This action cannot be undone.</span>
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setPendingRestoreFile(null)} className="btn-secondary flex-1">Cancel</button>
+                <button onClick={confirmRestore} className="btn-danger flex-1">Restore</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

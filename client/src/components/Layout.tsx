@@ -1,5 +1,6 @@
-import { ReactNode, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { ReactNode, useState, useEffect, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -7,11 +8,11 @@ interface LayoutProps { children: ReactNode; }
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: DashboardIcon },
-  { path: '/inventory', label: 'Inventory', icon: InventoryIcon },
-  { path: '/purchases', label: 'Purchases', icon: PurchaseIcon },
   { path: '/billing', label: 'Billing', icon: BillingIcon },
+  { path: '/inventory', label: 'Inventory', icon: InventoryIcon },
   { path: '/customers', label: 'Customers', icon: CustomerIcon },
   { path: '/expenses', label: 'Expenses', icon: ExpenseIcon },
+  { path: '/purchases', label: 'Purchases', icon: PurchaseIcon },
   { path: '/profile', label: 'Profile', icon: ProfileIcon },
 ];
 
@@ -20,13 +21,36 @@ export default function Layout({ children }: LayoutProps) {
   const { resolvedTheme, setTheme, theme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const sidebarOpenRef = useRef(sidebarOpen);
+  useEffect(() => { sidebarOpenRef.current = sidebarOpen; }, [sidebarOpen]);
+
+  // Android hardware/gesture back button handler
+  useEffect(() => {
+    let removeListener: (() => void) | undefined;
+    (async () => {
+      try {
+        const { App } = await import('@capacitor/app');
+        const handle = await App.addListener('backButton', ({ canGoBack }) => {
+          if (sidebarOpenRef.current) {
+            setSidebarOpen(false);
+          } else if (canGoBack) {
+            navigate(-1);
+          }
+        });
+        removeListener = () => handle.remove();
+      } catch { /* web fallback */ }
+    })();
+    return () => { removeListener?.(); };
+  }, [navigate]);
 
   const allNavItems = isOwner
     ? [...navItems, { path: '/settings', label: 'Settings', icon: SettingsIcon }]
     : navItems;
 
-  // Bottom nav shows max 5 items on mobile
+  // Bottom nav shows most-used 5 items (Dashboard, Billing, Inventory, Customers, Expenses)
   const bottomNavItems = allNavItems.slice(0, 5);
+  const currentPageTitle = allNavItems.find(item => item.path === location.pathname)?.label ?? 'JJ CRM';
 
   function cycleTheme() {
     const next = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
@@ -39,9 +63,9 @@ export default function Layout({ children }: LayoutProps) {
     : 'from-brand-500 to-violet-600';
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex transition-colors">
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex transition-colors">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 fixed h-full z-30 shadow-sm">
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-white dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800 fixed h-full z-30 shadow-sm">
         {/* Brand header */}
         <div className="flex items-center gap-3 px-5 py-5 bg-gradient-to-r from-brand-600 to-violet-700">
           <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center ring-2 ring-white/30">
@@ -106,13 +130,13 @@ export default function Layout({ children }: LayoutProps) {
       </aside>
 
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-zinc-200/70 dark:border-zinc-800/70 z-30 px-4 py-3 safe-area-top">
+      <header className="lg:hidden fixed top-0 left-0 right-0 bg-white/95 dark:bg-stone-900/95 backdrop-blur-md border-b border-stone-200/60 dark:border-stone-800/60 z-30 px-4 py-3 safe-area-top">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               aria-label="Toggle sidebar"
-              className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="p-2.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
               <MenuIcon />
             </button>
@@ -120,21 +144,21 @@ export default function Layout({ children }: LayoutProps) {
               <div className="w-7 h-7 bg-gradient-to-br from-brand-600 to-violet-700 rounded-lg flex items-center justify-center shadow-brand">
                 <span className="text-white font-bold text-[11px]">JJ</span>
               </div>
-              <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm tracking-tight">Jalan Jyothi</span>
+              <span className="font-bold text-stone-900 dark:text-stone-100 text-sm tracking-tight">{currentPageTitle}</span>
             </div>
           </div>
           <div className="flex items-center gap-0.5">
             <button
               onClick={cycleTheme}
               aria-label="Toggle theme"
-              className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-2.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
               {resolvedTheme === 'dark' ? <MoonIcon /> : <SunIcon />}
             </button>
             <button
               onClick={logout}
               aria-label="Logout"
-              className="text-zinc-400 hover:text-rose-500 p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+              className="text-zinc-400 hover:text-rose-500 p-2.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
             >
               <LogoutIcon />
             </button>
@@ -146,7 +170,7 @@ export default function Layout({ children }: LayoutProps) {
       {sidebarOpen && (
         <div className="lg:hidden fixed inset-0 z-40 animate-fade-in">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative w-72 h-full bg-white dark:bg-zinc-900 shadow-float animate-slide-up">
+          <aside className="relative w-72 h-full bg-white dark:bg-stone-900 shadow-float animate-slide-in">
             <div className="px-5 py-5 bg-gradient-to-r from-brand-600 to-violet-700">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center ring-2 ring-white/30">
@@ -183,32 +207,40 @@ export default function Layout({ children }: LayoutProps) {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-64 pt-16 pb-24 lg:pt-0 lg:pb-0">
-        <div className="p-4 lg:p-6 max-w-7xl mx-auto animate-fade-in">
-          {children}
-        </div>
+      <main className="flex-1 lg:ml-64 pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-[calc(6rem+env(safe-area-inset-bottom,0px))] lg:pt-0 lg:pb-0">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="p-4 lg:p-6 max-w-7xl mx-auto"
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-t border-zinc-200/70 dark:border-zinc-800/70 z-30 safe-area-bottom">
-        <div className="flex justify-around px-1 py-1.5">
+      {/* Mobile Bottom Navigation — M3 NavigationBar */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-stone-900 border-t border-stone-200 dark:border-stone-800 z-30 safe-area-bottom">
+        <div className="flex items-end justify-around px-2 pt-2 pb-1">
           {bottomNavItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <NavLink
                 key={item.path}
                 to={item.path}
-                className="flex flex-col items-center py-1 px-3 rounded-xl transition-all duration-150 relative"
+                className="flex flex-col items-center gap-0.5 pb-1 min-w-[60px] flex-1"
               >
-                <div className={`p-1.5 rounded-xl transition-all duration-150 ${
-                  isActive
-                    ? 'bg-gradient-to-br from-brand-500 to-violet-600 shadow-brand'
-                    : ''
+                {/* M3 tonal pill indicator */}
+                <div className={`w-14 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
+                  isActive ? 'bg-brand-100 dark:bg-brand-900/40' : ''
                 }`}>
                   <item.icon active={isActive} />
                 </div>
-                <span className={`text-[10px] font-semibold mt-0.5 transition-colors ${
-                  isActive ? 'text-brand-600 dark:text-brand-400' : 'text-zinc-400 dark:text-zinc-500'
+                <span className={`text-[11px] font-medium transition-colors ${
+                  isActive ? 'text-brand-700 dark:text-brand-400' : 'text-stone-400 dark:text-stone-500'
                 }`}>
                   {item.label}
                 </span>
@@ -281,7 +313,7 @@ function SettingsIcon({ active }: { active: boolean }) {
 
 function MenuIcon() {
   return (
-    <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <svg className="w-5 h-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
     </svg>
   );
@@ -297,7 +329,7 @@ function ProfileIcon({ active }: { active: boolean }) {
 
 function LogoutIcon() {
   return (
-    <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
     </svg>
   );

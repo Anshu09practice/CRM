@@ -299,22 +299,24 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
                     <div className="flex items-center gap-2 shrink-0">
                       <input
                         type="number"
+                        inputMode="numeric"
                         min={1}
                         max={item.available_qty}
                         value={item.quantity || ''}
                         onChange={e => updateLineItem(idx, 'quantity', e.target.value === '' ? 0 : (parseInt(e.target.value) || 0))}
-                        className="w-16 px-2 py-1 border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded text-sm text-center"
+                        className="w-16 px-2 py-2 border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded text-sm text-center"
                         title="Quantity"
                         aria-label={`Quantity for ${item.item_name}`}
                       />
                       <span className="text-xs text-zinc-500 dark:text-zinc-400">×</span>
                       <input
                         type="number"
+                        inputMode="decimal"
                         min={0}
                         step={0.5}
                         value={item.selling_price || ''}
                         onChange={e => updateLineItem(idx, 'selling_price', e.target.value === '' ? 0 : (parseFloat(e.target.value) || 0))}
-                        className="w-20 px-2 py-1 border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded text-sm text-center"
+                        className="w-20 px-2 py-2 border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded text-sm text-center"
                         title="Price"
                         aria-label={`Price for ${item.item_name}`}
                       />
@@ -346,6 +348,7 @@ export default function BillForm({ stock, bill, onSubmit, onCancel, onWhatsApp }
               <input
                 id="discount-input"
                 type="number"
+                inputMode="decimal"
                 min={0}
                 max={100}
                 step={0.5}

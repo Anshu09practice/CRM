@@ -200,14 +200,14 @@ export default function BillPrintView({ bill, onClose }: BillPrintViewProps) {
           </div>
 
           {/* Items Table */}
-          <table className="w-full text-sm border-collapse mb-4" style={{ tableLayout: 'fixed' }}>
+          <table className="w-full text-sm border-collapse mb-4 bill-items-table">
             <colgroup>
-              <col style={{ width: '5%' }} />
-              <col style={{ width: '40%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '8%' }} />
-              <col style={{ width: '17%' }} />
-              <col style={{ width: '18%' }} />
+              <col className="bill-col-no" />
+              <col className="bill-col-item" />
+              <col className="bill-col-rate" />
+              <col className="bill-col-qty" />
+              <col className="bill-col-disc" />
+              <col className="bill-col-total" />
             </colgroup>
             <thead>
               <tr className="border-y-2 border-slate-800">

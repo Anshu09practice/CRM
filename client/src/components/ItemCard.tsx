@@ -22,8 +22,8 @@ export default function ItemCard({ item, onEdit, onDelete }: ItemCardProps) {
       <div className="p-4">
         <div className="flex justify-between items-start mb-2">
           <div className="min-w-0 flex-1 pr-2">
-            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm leading-tight truncate">{item.item_name}</h3>
-            {item.sku_id && <p className="text-[10px] text-zinc-400 mt-0.5 font-mono">{item.sku_id}</p>}
+            <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm leading-tight truncate">{item.item_name}</h3>
+            {item.sku_id && <p className="text-[10px] text-stone-400 mt-0.5 font-mono">{item.sku_id}</p>}
           </div>
           <span className={`flex-shrink-0 badge ${
             item.packaging_style === 'packet' ? 'badge-info' : 'badge-brand'
@@ -33,23 +33,23 @@ export default function ItemCard({ item, onEdit, onDelete }: ItemCardProps) {
         </div>
 
         {/* Sizing info */}
-        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3 bg-zinc-50 dark:bg-zinc-800/60 px-2.5 py-1.5 rounded-lg">
+        <p className="text-xs text-stone-500 dark:text-stone-400 mb-3 bg-stone-50 dark:bg-stone-800/60 px-2.5 py-1.5 rounded-lg">
           {formatSizing(item.packaging_style, item.package_quantity_grams)}
         </p>
 
         {/* Price grid */}
         <div className="grid grid-cols-3 gap-1.5 text-center mb-3">
-          <div className="bg-zinc-50 dark:bg-zinc-800/60 rounded-xl p-2">
-            <p className="text-[9px] text-zinc-400 uppercase tracking-wide font-semibold">Buy</p>
-            <p className="font-bold text-xs text-zinc-700 dark:text-zinc-300 mt-0.5">₹{item.purchase_cost}</p>
+          <div className="bg-stone-50 dark:bg-stone-800/60 rounded-xl p-2">
+            <p className="text-[9px] text-stone-400 uppercase tracking-wide font-semibold">Buy</p>
+            <p className="font-bold text-xs text-stone-700 dark:text-stone-300 mt-0.5">₹{item.purchase_cost}</p>
           </div>
           <div className="bg-brand-50 dark:bg-brand-950/40 rounded-xl p-2 border border-brand-100 dark:border-brand-900/30">
             <p className="text-[9px] text-brand-500 uppercase tracking-wide font-semibold">Sell</p>
             <p className="font-bold text-xs text-brand-700 dark:text-brand-300 mt-0.5">₹{item.selling_price}</p>
           </div>
-          <div className="bg-zinc-50 dark:bg-zinc-800/60 rounded-xl p-2">
-            <p className="text-[9px] text-zinc-400 uppercase tracking-wide font-semibold">MRP</p>
-            <p className="font-bold text-xs text-zinc-700 dark:text-zinc-300 mt-0.5">₹{item.mrp}</p>
+          <div className="bg-stone-50 dark:bg-stone-800/60 rounded-xl p-2">
+            <p className="text-[9px] text-stone-400 uppercase tracking-wide font-semibold">MRP</p>
+            <p className="font-bold text-xs text-stone-700 dark:text-stone-300 mt-0.5">₹{item.mrp}</p>
           </div>
         </div>
 
@@ -66,7 +66,7 @@ export default function ItemCard({ item, onEdit, onDelete }: ItemCardProps) {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+        <div className="flex gap-2 pt-3 border-t border-stone-100 dark:border-stone-800">
           <button onClick={onEdit} className="flex-1 text-xs py-1.5 text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/40 rounded-lg font-semibold transition-colors">
             Edit
           </button>

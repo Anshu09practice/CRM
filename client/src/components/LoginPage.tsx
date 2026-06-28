@@ -102,8 +102,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-8"
-         style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #2e1065 35%, #1e1b4b 65%, #09090b 100%)' }}>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-8 gradient-login-bg">
 
       {/* Decorative blobs */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-brand-600/20 rounded-full blur-3xl pointer-events-none" />
