@@ -193,6 +193,7 @@ model CreditNote {
 enum Role {
   owner
   manager
+  employee
 }
 
 enum PackagingStyle {

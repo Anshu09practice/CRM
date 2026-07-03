@@ -140,7 +140,7 @@ export function auditLog(event: string, details: Record<string, any>): void {
 export interface AuthPayload {
   userId: number;
   username: string;
-  role: 'owner' | 'manager';
+  role: 'owner' | 'manager' | 'employee';
   iat?: number;
   exp?: number;
 }

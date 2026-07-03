@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Background circle area (safe zone is 66dp centered) -->
+    <!-- "JJ" text represented as simple paths -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M43.5,42 L43.5,58 C43.5,62.4 40.9,65 36.5,65 C32.1,65 29.5,62.4 29.5,58 L29.5,56 L33.5,56 L33.5,58 C33.5,60.2 34.7,61 36.5,61 C38.3,61 39.5,60.2 39.5,58 L39.5,42 Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M78.5,42 L78.5,58 C78.5,62.4 75.9,65 71.5,65 C67.1,65 64.5,62.4 64.5,58 L64.5,56 L68.5,56 L68.5,58 C68.5,60.2 69.7,61 71.5,61 C73.3,61 74.5,60.2 74.5,58 L74.5,42 Z"/>
+</vector>

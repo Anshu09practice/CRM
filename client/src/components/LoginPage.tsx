@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+import { api, isOfflineMode } from '../services/api';
+import { localApi } from '../services/localDb';
 
 export default function LoginPage() {
   const { setupRequired, login, setup } = useAuth();
-  const [mode, setMode] = useState<'login' | 'setup' | 'forgot'>(() => setupRequired ? 'setup' : 'login');
+  const [mode, setMode] = useState<'login' | 'setup' | 'register' | 'forgot'>(() => setupRequired ? 'setup' : 'login');
   const [loading, setLoading] = useState(false);
 
   // Login
@@ -101,6 +102,54 @@ export default function LoginPage() {
     }
   }
 
+  // Register state
+  const [regUsername, setRegUsername] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regSecurityQuestion, setRegSecurityQuestion] = useState('');
+  const [regSecurityAnswer, setRegSecurityAnswer] = useState('');
+
+  async function handleRegister(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (isOfflineMode()) {
+        await localApi.createUser({
+          username: regUsername.trim().toLowerCase(),
+          password: regPassword,
+          role: 'employee',
+          security_question: regSecurityQuestion,
+          security_answer: regSecurityAnswer,
+        });
+      } else {
+        // Self-registration creates employee accounts only
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: regUsername.trim(),
+            password: regPassword,
+            security_question: regSecurityQuestion,
+            security_answer: regSecurityAnswer,
+          })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Registration failed');
+        }
+      }
+      toast.success('Account created! You can now login.');
+      setMode('login');
+      setRegUsername('');
+      setRegPassword('');
+      setRegSecurityQuestion('');
+      setRegSecurityAnswer('');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-8 gradient-login-bg">
 
@@ -159,9 +208,14 @@ export default function LoginPage() {
                 className="w-full py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-brand-600 to-violet-600 hover:from-brand-500 hover:to-violet-500 shadow-brand-lg active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed mt-2">
                 {loading ? 'Signing in...' : otpSent ? 'Verify OTP' : username.trim().toLowerCase() === 'anshu' ? 'Request OTP' : 'Sign In'}
               </button>
-              <button type="button" onClick={() => setMode('forgot')} className="w-full text-sm text-white/50 hover:text-white/80 transition-colors py-1">
-                Forgot password?
-              </button>
+              <div className="flex items-center justify-between">
+                <button type="button" onClick={() => setMode('forgot')} className="text-sm text-white/50 hover:text-white/80 transition-colors py-1">
+                  Forgot password?
+                </button>
+                <button type="button" onClick={() => setMode('register')} className="text-sm text-brand-300 hover:text-brand-200 transition-colors py-1 font-medium">
+                  Create Account
+                </button>
+              </div>
             </form>
           )}
 
@@ -198,6 +252,46 @@ export default function LoginPage() {
               <button type="submit" disabled={loading}
                 className="w-full py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-brand-600 to-violet-600 hover:from-brand-500 hover:to-violet-500 shadow-brand-lg active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed mt-2">
                 {loading ? 'Creating...' : 'Create Account'}
+              </button>
+            </form>
+          )}
+
+          {mode === 'register' && (
+            <form onSubmit={handleRegister} className="space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Create Account</h2>
+                <p className="text-xs text-white/50 mt-1">Register as a new employee</p>
+              </div>
+              <div>
+                <label htmlFor="reg-username" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Username</label>
+                <input id="reg-username" type="text" value={regUsername} onChange={(e) => setRegUsername(e.target.value)} required
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all"
+                  placeholder="Choose a username" autoFocus />
+              </div>
+              <div>
+                <label htmlFor="reg-password" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Password</label>
+                <input id="reg-password" type="password" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} required minLength={4}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all"
+                  placeholder="Choose a password" />
+              </div>
+              <div>
+                <label htmlFor="reg-security-question" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Security Question</label>
+                <input id="reg-security-question" type="text" value={regSecurityQuestion} onChange={(e) => setRegSecurityQuestion(e.target.value)} required
+                  placeholder="e.g., Your pet's name?"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all" />
+              </div>
+              <div>
+                <label htmlFor="reg-security-answer" className="block text-xs font-semibold text-white/60 mb-1.5 uppercase tracking-wide">Security Answer</label>
+                <input id="reg-security-answer" type="text" value={regSecurityAnswer} onChange={(e) => setRegSecurityAnswer(e.target.value)} required
+                  placeholder="Your answer"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400 transition-all" />
+              </div>
+              <button type="submit" disabled={loading}
+                className="w-full py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-brand-600 to-violet-600 hover:from-brand-500 hover:to-violet-500 shadow-brand-lg active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed mt-2">
+                {loading ? 'Creating...' : 'Create Account'}
+              </button>
+              <button type="button" onClick={() => setMode('login')} className="w-full text-sm text-white/50 hover:text-white/80 transition-colors py-1">
+                Already have an account? Sign in
               </button>
             </form>
           )}

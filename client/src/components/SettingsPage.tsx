@@ -143,6 +143,7 @@ function UsersSection() {
               <div>
                 <label htmlFor="create-role" className="label">Role *</label>
                 <select id="create-role" name="role" className="input w-full">
+                  <option value="employee">Employee</option>
                   <option value="manager">Manager</option>
                   <option value="owner">Owner</option>
                 </select>

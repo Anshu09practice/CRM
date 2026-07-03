@@ -361,6 +361,32 @@ const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_audit_log_date ON audit_log(created_at);
       CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
     `
+  },
+  {
+    version: 12,
+    name: 'add_employee_role_and_admin_seed',
+    sql: `
+      -- Recreate users table to update CHECK constraint for employee role
+      CREATE TABLE users_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        role TEXT NOT NULL DEFAULT 'owner' CHECK(role IN ('owner', 'manager', 'employee')),
+        security_question TEXT DEFAULT '',
+        security_answer_hash TEXT DEFAULT '',
+        is_active INTEGER NOT NULL DEFAULT 1,
+        last_login DATETIME
+      );
+
+      INSERT INTO users_new SELECT * FROM users;
+      DROP TABLE users;
+      ALTER TABLE users_new RENAME TO users;
+
+      -- Seed default admin user (password: admin — hashed with bcrypt)
+      INSERT OR IGNORE INTO users (username, password_hash, role, security_question, security_answer_hash, is_active)
+      VALUES ('admin', '$2a$10$7subEKHug1tGZaeNzOVx3.upvY3l/DdvJUaghsDSAP2X8untWjBHm', 'owner', 'Default admin account', '', 1);
+    `
   }
 ];
 

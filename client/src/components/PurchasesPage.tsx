@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { api, Item, Purchase } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import PurchaseForm from './PurchaseForm';
 import PurchaseBulkUploadModal from './PurchaseBulkUploadModal';
 import DeleteModal from './DeleteModal';
 
 export default function PurchasesPage() {
+  const { isOwner } = useAuth();
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,11 +113,13 @@ export default function PurchasesPage() {
         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
           className="shrink-0 text-xs px-3 py-1.5 rounded-full border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-500 dark:text-stone-400"
           title="To date" />
-        <button onClick={() => setShowBulkUpload(true)}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 transition-colors">
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
-          Bulk Upload
-        </button>
+        {isOwner && (
+          <button onClick={() => setShowBulkUpload(true)}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+            Bulk Upload
+          </button>
+        )}
       </div>
 
       {/* Summary */}
@@ -139,9 +143,11 @@ export default function PurchasesPage() {
           <p className="text-4xl mb-3">🛒</p>
           <p className="text-stone-800 dark:text-stone-200 font-medium">No purchases recorded</p>
           <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">Record your first purchase</p>
-          <button onClick={() => setShowForm(true)} className="btn-primary text-sm mt-4">
-            + Record Purchase
-          </button>
+          {isOwner && (
+            <button onClick={() => setShowForm(true)} className="btn-primary text-sm mt-4">
+              + Record Purchase
+            </button>
+          )}
         </div>
       )}
 
@@ -168,36 +174,40 @@ export default function PurchasesPage() {
               </div>
               <div className="text-right shrink-0">
                 <p className="font-bold text-zinc-900 dark:text-zinc-100">₹{p.total_cost.toFixed(0)}</p>
-                <div className="flex gap-1 mt-1">
-                  <button
-                    onClick={() => setEditingPurchase(p)}
-                    className="min-h-[44px] flex items-center px-2 text-[11px] text-brand-600 dark:text-brand-400 hover:text-brand-800 font-medium"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(p)}
-                    className="min-h-[44px] flex items-center px-2 text-[11px] text-rose-600 dark:text-rose-400 hover:text-red-800 font-medium"
-                  >
-                    Del
-                  </button>
-                </div>
+                {isOwner && (
+                  <div className="flex gap-1 mt-1">
+                    <button
+                      onClick={() => setEditingPurchase(p)}
+                      className="min-h-[44px] flex items-center px-2 text-[11px] text-brand-600 dark:text-brand-400 hover:text-brand-800 font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(p)}
+                      className="min-h-[44px] flex items-center px-2 text-[11px] text-rose-600 dark:text-rose-400 hover:text-red-800 font-medium"
+                    >
+                      Del
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* FAB — Record Purchase */}
-      <button
-        onClick={() => setShowForm(true)}
-        className="m3-fab"
-        aria-label="Record new purchase"
-      >
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-      </button>
+      {/* FAB — Record Purchase (owner only) */}
+      {isOwner && (
+        <button
+          onClick={() => setShowForm(true)}
+          className="m3-fab"
+          aria-label="Record new purchase"
+        >
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+        </button>
+      )}
 
       {/* Modals */}
       {showForm && (

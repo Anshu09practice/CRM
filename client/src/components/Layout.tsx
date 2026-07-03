@@ -17,7 +17,7 @@ const navItems = [
 ];
 
 export default function Layout({ children }: LayoutProps) {
-  const { user, logout, isOwner } = useAuth();
+  const { user, logout, role } = useAuth();
   const { resolvedTheme, setTheme, theme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
@@ -44,9 +44,18 @@ export default function Layout({ children }: LayoutProps) {
     return () => { removeListener?.(); };
   }, [navigate]);
 
-  const allNavItems = isOwner
-    ? [...navItems, { path: '/settings', label: 'Settings', icon: SettingsIcon }]
-    : navItems;
+  const allNavItems = (() => {
+    // Employee: only Dashboard, Billing, Profile
+    if (role === 'employee') {
+      return navItems.filter(item => ['/', '/billing', '/profile'].includes(item.path));
+    }
+    // Manager: Dashboard, Billing, Inventory, Customers, Purchases, Profile (no Expenses, no Settings)
+    if (role === 'manager') {
+      return navItems.filter(item => ['/', '/billing', '/inventory', '/customers', '/purchases', '/profile'].includes(item.path));
+    }
+    // Owner: everything + settings
+    return [...navItems, { path: '/settings', label: 'Settings', icon: SettingsIcon }];
+  })();
 
   // Bottom nav shows most-used 5 items (Dashboard, Billing, Inventory, Customers, Expenses)
   const bottomNavItems = allNavItems.slice(0, 5);

@@ -68,7 +68,7 @@ export default function App() {
 }
 
 function AuthGate() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, role } = useAuth();
 
   if (loading) {
     return (
@@ -90,12 +90,19 @@ function AuthGate() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<DashboardPage />} />
-          <Route path="/inventory" element={<InventoryPage />} />
-          <Route path="/purchases" element={<PurchasesPage />} />
           <Route path="/billing" element={<BillingPage />} />
-          <Route path="/customers" element={<CustomersPage />} />
-          <Route path="/expenses" element={<ExpensesPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          {/* Manager: view inventory and purchases; Owner: full access */}
+          {(role === 'owner' || role === 'manager') && (
+            <>
+              <Route path="/inventory" element={<InventoryPage />} />
+              <Route path="/purchases" element={<PurchasesPage />} />
+              <Route path="/customers" element={<CustomersPage />} />
+              <Route path="/expenses" element={<ExpensesPage />} />
+            </>
+          )}
+          {role === 'owner' && (
+            <Route path="/settings" element={<SettingsPage />} />
+          )}
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

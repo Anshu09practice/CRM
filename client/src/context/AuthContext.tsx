@@ -8,16 +8,18 @@ const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
 interface User {
   id: number;
   username: string;
-  role: 'owner' | 'manager';
+  role: 'owner' | 'manager' | 'employee';
 }
 
 interface AuthContextType {
   token: string | null;
   user: User | null;
   username: string | null;
-  role: 'owner' | 'manager' | null;
+  role: 'owner' | 'manager' | 'employee' | null;
   isAuthenticated: boolean;
   isOwner: boolean;
+  isManager: boolean;
+  isEmployee: boolean;
   setupRequired: boolean | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
@@ -234,11 +236,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = !!token;
   const isOwner = user?.role === 'owner';
+  const isManager = user?.role === 'manager';
+  const isEmployee = user?.role === 'employee';
 
   return (
     <AuthContext.Provider value={{
       token, user, username: user?.username || null, role: user?.role || null,
-      isAuthenticated, isOwner, setupRequired, loading, login, setup, logout
+      isAuthenticated, isOwner, isManager, isEmployee, setupRequired, loading, login, setup, logout
     }}>
       {children}
     </AuthContext.Provider>

@@ -114,7 +114,7 @@ export interface LocalUser {
   id?: number;
   username: string;
   password_hash: string;
-  role: 'owner' | 'manager';
+  role: 'owner' | 'manager' | 'employee';
   security_question: string;
   security_answer_hash: string;
   is_active: number;
@@ -1097,7 +1097,22 @@ export const localApi = {
   // ===== Auth (local - simplified) =====
   async checkSetupRequired() {
     const count = await localDb.users.count();
-    return count === 0;
+    if (count === 0) {
+      // Seed default admin user (password: admin)
+      const hash = await hashPassword('admin');
+      await localDb.users.add({
+        username: 'admin',
+        password_hash: hash,
+        role: 'owner',
+        security_question: 'Default admin account',
+        security_answer_hash: '',
+        is_active: 1,
+        last_login: '',
+        created_at: now()
+      });
+      return false; // Admin already seeded, no setup needed
+    }
+    return false;
   },
 
   async setup(username: string, password: string, security_question: string, security_answer: string) {
@@ -1151,7 +1166,7 @@ export const localApi = {
     const id = await localDb.users.add({
       username: data.username,
       password_hash: hash,
-      role: data.role as 'owner' | 'manager',
+      role: data.role as 'owner' | 'manager' | 'employee',
       security_question: data.security_question || '',
       security_answer_hash: answerHash,
       is_active: 1,

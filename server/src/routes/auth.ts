@@ -309,6 +309,48 @@ router.get('/status', (_req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/auth/register - Self-registration (creates employee account)
+ * No auth required — anyone can create an employee account
+ */
+router.post('/register', async (req: Request, res: Response) => {
+  const { username, password, security_question, security_answer } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+
+  if (!security_question || !security_answer) {
+    return res.status(400).json({ error: 'Security question and answer are required' });
+  }
+
+  const normalizedUsername = username.trim().toLowerCase();
+
+  // Prevent registering as 'admin'
+  if (normalizedUsername === 'admin') {
+    return res.status(409).json({ error: 'This username is reserved' });
+  }
+
+  // Check if username already exists
+  const existing = queryOne('SELECT id FROM users WHERE username = ?', [normalizedUsername]);
+  if (existing) {
+    return res.status(409).json({ error: 'Username already exists' });
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const password_hash = await bcrypt.hash(password, salt);
+  const answer_hash = await bcrypt.hash(security_answer.trim().toLowerCase(), salt);
+
+  runQuery(
+    `INSERT INTO users (username, password_hash, role, security_question, security_answer_hash, is_active)
+     VALUES (?, ?, 'employee', ?, ?, 1)`,
+    [normalizedUsername, password_hash, security_question.trim(), answer_hash]
+  );
+
+  auditLog('USER_REGISTERED', { username: normalizedUsername, role: 'employee', ip: req.ip });
+  res.status(201).json({ message: 'Account created. You can now login.' });
+});
+
+/**
  * POST /api/auth/logout - Invalidate current token (PCI DSS 8.1.5)
  */
 router.post('/logout', authMiddleware, (req: Request, res: Response) => {
@@ -346,8 +388,8 @@ router.post('/users', authMiddleware, requireRole('owner'), async (req: Request,
     return res.status(400).json({ error: passwordError });
   }
 
-  if (!['owner', 'manager'].includes(role)) {
-    return res.status(400).json({ error: 'Role must be owner or manager' });
+  if (!['owner', 'manager', 'employee'].includes(role)) {
+    return res.status(400).json({ error: 'Role must be owner, manager, or employee' });
   }
 
   // Check if username already exists
@@ -386,7 +428,7 @@ router.put('/users/:id', authMiddleware, requireRole('owner'), async (req: Reque
     return res.status(404).json({ error: 'User not found' });
   }
 
-  if (role && ['owner', 'manager'].includes(role)) {
+  if (role && ['owner', 'manager', 'employee'].includes(role)) {
     runQuery('UPDATE users SET role = ? WHERE id = ?', [role, userId]);
   }
 
