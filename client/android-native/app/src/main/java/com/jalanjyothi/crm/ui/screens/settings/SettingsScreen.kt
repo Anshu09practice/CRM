@@ -357,7 +357,7 @@ private fun ConnectionTab(uiState: SettingsUiState, viewModel: SettingsViewModel
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Quick Reference", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "Emulator: https://10.0.2.2:3001\nPhone (WiFi): https://10.22.184.254:3001\n\nMake sure your PC and phone are on the same WiFi network, and the Windows Firewall allows port 3001.",
+                        "Emulator: https://10.0.2.2:3001\nPhone (WiFi): https://<your-PC-IP>:3001\n\nFind your PC's IP with: ipconfig (Windows). Make sure your PC and phone are on the same WiFi network, and the Windows Firewall allows port 3001.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -53,7 +53,7 @@ class AuthTokenStore @Inject constructor(
             Build.HARDWARE.contains("ranchu") ||
             Build.PRODUCT.startsWith("sdk") ||
             Build.PRODUCT.startsWith("vbox")
-        return if (isEmulator) "https://10.0.2.2:3001" else "https://10.22.184.254:3001"
+        return if (isEmulator) "https://10.0.2.2:3001" else ""
     }
 
     suspend fun getAccessToken(): String? {
@@ -89,6 +89,6 @@ class AuthTokenStore @Inject constructor(
     }
 
     companion object {
-        const val DEFAULT_SERVER_URL = "https://10.22.184.254:3001"
+        const val DEFAULT_SERVER_URL = ""
     }
 }

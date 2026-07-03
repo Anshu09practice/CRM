@@ -10,6 +10,7 @@ import com.jalanjyothi.crm.data.local.dao.ExpenseDao
 import com.jalanjyothi.crm.data.local.dao.ItemDao
 import com.jalanjyothi.crm.data.local.dao.MutationDao
 import com.jalanjyothi.crm.data.local.dao.PurchaseDao
+import com.jalanjyothi.crm.data.local.dao.UserDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -53,4 +54,7 @@ object DatabaseModule {
 
     @Provides
     fun provideMutationDao(db: AppDatabase): MutationDao = db.mutationDao()
+
+    @Provides
+    fun provideUserDao(db: AppDatabase): UserDao = db.userDao()
 }

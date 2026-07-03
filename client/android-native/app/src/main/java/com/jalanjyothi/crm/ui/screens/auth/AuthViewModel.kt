@@ -20,6 +20,7 @@ class AuthViewModel @Inject constructor(
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     init {
+        viewModelScope.launch { authRepository.seedDefaultAdminIfNeeded() }
         checkAuth()
         collectRole()
     }

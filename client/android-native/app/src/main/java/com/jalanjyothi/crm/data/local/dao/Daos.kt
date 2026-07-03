@@ -12,6 +12,7 @@ import com.jalanjyothi.crm.data.local.entity.ExpenseEntity
 import com.jalanjyothi.crm.data.local.entity.ItemEntity
 import com.jalanjyothi.crm.data.local.entity.PendingMutation
 import com.jalanjyothi.crm.data.local.entity.PurchaseEntity
+import com.jalanjyothi.crm.data.local.entity.UserEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -175,4 +176,19 @@ interface MutationDao {
 
     @Query("DELETE FROM pending_mutations WHERE retries > 5")
     suspend fun deleteStaleRetries()
+}
+
+@Dao
+interface UserDao {
+    @Query("SELECT * FROM local_users WHERE username = :username LIMIT 1")
+    suspend fun getByUsername(username: String): UserEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(user: UserEntity)
+
+    @Query("SELECT COUNT(*) FROM local_users")
+    suspend fun count(): Int
+
+    @Query("UPDATE local_users SET last_login = :time WHERE username = :username")
+    suspend fun updateLastLogin(username: String, time: String)
 }

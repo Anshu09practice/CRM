@@ -60,6 +60,6 @@ class ServerUrlInterceptor @Inject constructor(
         }
 
         const val EMULATOR_URL = "https://10.0.2.2:3001"
-        const val DEVICE_URL = "https://10.22.184.254:3001"
+        const val DEVICE_URL = ""
     }
 }

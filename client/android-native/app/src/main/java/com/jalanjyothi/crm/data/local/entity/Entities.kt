@@ -113,3 +113,16 @@ data class PendingMutation(
     @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
     val retries: Int = 0,
 )
+
+// ─── Local Auth ───────────────────────────────────────────────────────────────
+
+@Entity(tableName = "local_users")
+data class UserEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val username: String,
+    @ColumnInfo(name = "password_hash") val passwordHash: String,
+    val role: String = "owner",
+    @ColumnInfo(name = "is_active") val isActive: Boolean = true,
+    @ColumnInfo(name = "last_login") val lastLogin: String? = null,
+    @ColumnInfo(name = "created_at") val createdAt: String,
+)

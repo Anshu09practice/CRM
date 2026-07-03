@@ -7,9 +7,11 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +24,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Visibility
@@ -46,6 +50,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.jalanjyothi.crm.ui.components.AppTextField
@@ -113,7 +118,82 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-                // ─── Username Field ───────────────────────────────────────────────
+                // ─── Server URL (compact indicator or expanded field) ──────────────
+                // Compact row — shown when URL is already configured and not editing
+                AnimatedVisibility(
+                    visible = uiState.serverUrl.isNotBlank() && !uiState.serverUrlExpanded,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !uiState.showPasswordField) {
+                                viewModel.onToggleServerUrl()
+                            }
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            androidx.compose.material3.Icon(
+                                imageVector = Icons.Outlined.Dns,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = uiState.serverUrl
+                                    .removePrefix("https://")
+                                    .removePrefix("http://"),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (!uiState.showPasswordField) {
+                            androidx.compose.material3.Icon(
+                                imageVector = Icons.Outlined.Edit,
+                                contentDescription = "Change server URL",
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
+
+                // Expanded URL field — shown when URL is blank or being edited
+                AnimatedVisibility(
+                    visible = uiState.serverUrl.isBlank() || uiState.serverUrlExpanded,
+                    enter = expandVertically(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                        ),
+                    ) + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    AppTextField(
+                        value = uiState.serverUrl,
+                        onValueChange = viewModel::onServerUrlChange,
+                        label = "Server URL",
+                        placeholder = "https://your-server.com:3001",
+                        leadingIcon = Icons.Outlined.Dns,
+                        enabled = !uiState.showPasswordField,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Uri,
+                            imeAction = ImeAction.Next,
+                        ),
+                        error = if (uiState.serverUrl.isBlank()) uiState.error else null,
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // ─── Username Field ───────────────────────────────────────────────────────────────────────────────────────────────────
                 AppTextField(
                     value = uiState.username,
                     onValueChange = viewModel::onUsernameChange,

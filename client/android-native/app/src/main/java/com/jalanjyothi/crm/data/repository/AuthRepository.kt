@@ -1,11 +1,20 @@
 package com.jalanjyothi.crm.data.repository
 
 import com.jalanjyothi.crm.data.local.AuthTokenStore
+import com.jalanjyothi.crm.data.local.LocalAuthHelper
+import com.jalanjyothi.crm.data.local.dao.UserDao
+import com.jalanjyothi.crm.data.local.entity.UserEntity
 import com.jalanjyothi.crm.data.remote.ApiService
 import com.jalanjyothi.crm.data.remote.LoginRequest
 import com.jalanjyothi.crm.data.remote.LoginResponse
 import com.jalanjyothi.crm.data.remote.RefreshRequest
+import com.jalanjyothi.crm.data.remote.UserDto
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import java.io.IOException
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -13,49 +22,109 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val api: ApiService,
     private val tokenStore: AuthTokenStore,
+    private val userDao: UserDao,
 ) {
     val isLoggedIn: Flow<Boolean> = tokenStore.isLoggedIn
     val username: Flow<String?> = tokenStore.username
     val role: Flow<String?> = tokenStore.role
 
+    /**
+     * Seeds a default admin/admin user the very first time the app is installed,
+     * so the app can be used offline without ever connecting to a server.
+     */
+    suspend fun seedDefaultAdminIfNeeded() = withContext(Dispatchers.IO) {
+        if (userDao.count() == 0) {
+            val hash = LocalAuthHelper.hashPassword("admin")
+            userDao.upsert(
+                UserEntity(
+                    username = "admin",
+                    passwordHash = hash,
+                    role = "owner",
+                    isActive = true,
+                    createdAt = Instant.now().toString(),
+                )
+            )
+        }
+    }
+
     suspend fun checkSetupRequired(): Boolean {
         return try {
             api.getStatus().setupRequired
-        } catch (e: Exception) {
+        } catch (_: Exception) {
+            // Server unreachable — treat as no setup required (local user already seeded)
             false
         }
     }
 
+    /**
+     * Attempts server login first. On network failure falls back to locally-cached
+     * credentials so the app works without a server connection.
+     * On a successful server login the credentials are cached locally for future offline use.
+     */
     suspend fun login(username: String, password: String?): Result<LoginResponse> {
+        val serverUrl = tokenStore.serverUrl.first()
+        // No server URL configured — skip the network and use local auth directly
+        if (serverUrl.isBlank() && password != null) {
+            return loginLocally(username, password)
+        }
+
         return try {
             val response = api.login(LoginRequest(username, password))
             if (response.token != null && response.refreshToken != null && response.user != null) {
                 tokenStore.saveTokens(response.token, response.refreshToken)
                 tokenStore.saveUser(response.user.username, response.user.role)
+                // Cache credentials locally for future offline logins
+                if (password != null) {
+                    cacheUserLocally(response.user.username, password, response.user.role)
+                }
             }
             Result.success(response)
         } catch (e: Exception) {
-            Result.failure(e)
+            // Fall back to local auth only for genuine network errors (not 401/423)
+            if (password != null && isNetworkError(e)) {
+                loginLocally(username, password)
+            } else {
+                Result.failure(e)
+            }
         }
     }
 
     suspend fun verifyToken(): Boolean {
+        val token = tokenStore.getAccessToken() ?: return false
+        // Local session — verify the cached user still exists and is active
+        if (token.startsWith("local-")) {
+            val uname = tokenStore.username.first() ?: return false
+            return withContext(Dispatchers.IO) {
+                val user = userDao.getByUsername(uname)
+                user != null && user.isActive
+            }
+        }
         return try {
-            tokenStore.getAccessToken() ?: return false
             api.verifyToken().valid
-        } catch (e: Exception) {
-            // Try refresh
+        } catch (_: Exception) {
             refreshToken()
         }
     }
 
     private suspend fun refreshToken(): Boolean {
+        val refresh = tokenStore.getRefreshToken() ?: return false
+        // Re-validate local session without hitting the network
+        if (refresh == "local-refresh") {
+            val uname = tokenStore.username.first() ?: return false
+            return withContext(Dispatchers.IO) {
+                val user = userDao.getByUsername(uname) ?: run {
+                    tokenStore.clear(); return@withContext false
+                }
+                if (!user.isActive) { tokenStore.clear(); return@withContext false }
+                tokenStore.saveTokens("local-${System.currentTimeMillis()}", "local-refresh")
+                true
+            }
+        }
         return try {
-            val refresh = tokenStore.getRefreshToken() ?: return false
             val response = api.refreshToken(RefreshRequest(refresh))
             tokenStore.saveTokens(response.token, response.refreshToken)
             true
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             tokenStore.clear()
             false
         }
@@ -85,10 +154,6 @@ class AuthRepository @Inject constructor(
             }
             Result.failure(Exception(msg))
         } catch (e: ClassCastException) {
-            // R8/ProGuard can strip generic type info from Continuation parameters,
-            // causing Retrofit to throw ClassCastException instead of resolving the
-            // suspend function's response type. Rebuild the release APK after updating
-            // proguard-rules.pro to permanently fix this.
             Result.failure(Exception("Registration failed. Please try again."))
         } catch (e: Exception) {
             Result.failure(e)
@@ -103,4 +168,53 @@ class AuthRepository @Inject constructor(
         }
         tokenStore.clear()
     }
+
+    // ─── Private helpers ─────────────────────────────────────────────────────
+
+    private suspend fun loginLocally(username: String, password: String): Result<LoginResponse> =
+        withContext(Dispatchers.IO) {
+            val user = userDao.getByUsername(username)
+                ?: return@withContext Result.failure(Exception("Invalid credentials"))
+            if (!user.isActive)
+                return@withContext Result.failure(Exception("Account is disabled"))
+            if (!LocalAuthHelper.verifyPassword(password, user.passwordHash))
+                return@withContext Result.failure(Exception("Invalid credentials"))
+
+            userDao.updateLastLogin(username, Instant.now().toString())
+            val localToken = "local-${System.currentTimeMillis()}"
+            tokenStore.saveTokens(localToken, "local-refresh")
+            tokenStore.saveUser(user.username, user.role)
+            Result.success(
+                LoginResponse(
+                    token = localToken,
+                    refreshToken = "local-refresh",
+                    user = UserDto(id = user.id, username = user.username, role = user.role),
+                )
+            )
+        }
+
+    private suspend fun cacheUserLocally(username: String, password: String, role: String) =
+        withContext(Dispatchers.IO) {
+            val hash = LocalAuthHelper.hashPassword(password)
+            val now = Instant.now().toString()
+            val existing = userDao.getByUsername(username)
+            userDao.upsert(
+                UserEntity(
+                    id = existing?.id ?: 0,
+                    username = username,
+                    passwordHash = hash,
+                    role = role,
+                    isActive = true,
+                    lastLogin = now,
+                    createdAt = existing?.createdAt ?: now,
+                )
+            )
+        }
+
+    /** Returns true for genuine connectivity failures (not HTTP 4xx/5xx). */
+    private fun isNetworkError(e: Exception): Boolean =
+        e is IOException ||
+        e.message?.contains("timeout", ignoreCase = true) == true ||
+        e.message?.contains("Unable to resolve host", ignoreCase = true) == true
 }
+
