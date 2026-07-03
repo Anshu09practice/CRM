@@ -39,6 +39,19 @@
 -keepclasseswithmembers class kotlinx.serialization.json.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+# Keep @Serializable classes and their generated serializer companions
+-keep @kotlinx.serialization.Serializable class * { *; }
+-keepclassmembers @kotlinx.serialization.Serializable class ** {
+    *** Companion;
+    *** INSTANCE;
+    kotlinx.serialization.KSerializer serializer(...);
+}
+# Keep generated $serializer objects (created by the kotlinx.serialization plugin)
+-keepclasseswithmembers class **$serializer {
+    *** INSTANCE;
+    <fields>;
+    <methods>;
+}
 
 # ─── Retrofit ────────────────────────────────────────────────────────────────
 -dontwarn retrofit2.**
@@ -46,6 +59,20 @@
 -keepclassmembers,allowshrinking,allowobfuscation interface * {
     @retrofit2.http.* <methods>;
 }
+# CRITICAL: keep any interface that has Retrofit annotations (preserves generic
+# Signature attribute so Retrofit can extract suspend-function response types).
+# Without this, R8 strips Continuation<? super T> to a raw type, causing:
+#   java.lang.Class cannot be cast to java.lang.reflect.ParameterizedType
+-if interface * { @retrofit2.http.* <methods>; }
+-keep,allowobfuscation interface <1>
+-if interface * { @retrofit2.http.* <methods>; }
+-keep,allowobfuscation interface * extends <1>
+# Kotlin coroutines - preserve generic signatures for Retrofit suspend support
+-keep class kotlin.coroutines.Continuation
+-keepattributes Signature, Exceptions
+-dontwarn retrofit2.KotlinExtensions
+-dontwarn retrofit2.KotlinExtensions$*
+-dontwarn kotlin.Unit
 
 # ─── OkHttp ──────────────────────────────────────────────────────────────────
 -dontwarn okhttp3.**

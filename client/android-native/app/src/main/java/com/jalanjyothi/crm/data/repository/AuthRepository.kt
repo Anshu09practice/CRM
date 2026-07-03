@@ -84,6 +84,12 @@ class AuthRepository @Inject constructor(
                 else -> "Registration failed"
             }
             Result.failure(Exception(msg))
+        } catch (e: ClassCastException) {
+            // R8/ProGuard can strip generic type info from Continuation parameters,
+            // causing Retrofit to throw ClassCastException instead of resolving the
+            // suspend function's response type. Rebuild the release APK after updating
+            // proguard-rules.pro to permanently fix this.
+            Result.failure(Exception("Registration failed. Please try again."))
         } catch (e: Exception) {
             Result.failure(e)
         }
