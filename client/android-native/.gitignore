@@ -1,7 +1,7 @@
 # Build artifacts
 app/build/
+!app/build/outputs/apk/release/
 build/
 .gradle/
 local.properties
-*.apk
 *.aab
