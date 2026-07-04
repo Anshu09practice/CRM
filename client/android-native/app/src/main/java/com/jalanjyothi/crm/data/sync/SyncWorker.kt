@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.BackoffPolicy
+import com.jalanjyothi.crm.AppLogger
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -31,6 +32,7 @@ class SyncWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
+        AppLogger.i("Sync", "doWork() attempt #${runAttemptCount + 1}")
         return try {
             Log.d(TAG, "Starting sync...")
 
@@ -38,15 +40,18 @@ class SyncWorker @AssistedInject constructor(
             val processed = repository.processPendingMutations()
             if (processed > 0) {
                 Log.d(TAG, "Processed $processed pending mutations")
+                AppLogger.i("Sync", "Pushed $processed pending mutations")
             }
 
             // 2. Pull fresh data from server
             repository.syncAll()
 
             Log.d(TAG, "Sync completed successfully")
+            AppLogger.i("Sync", "Sync completed successfully")
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "Sync failed: ${e.message}")
+            AppLogger.e("Sync", "Sync failed on attempt #${runAttemptCount + 1}: ${e.javaClass.simpleName}: ${e.message}", e)
             if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
     }

@@ -14,13 +14,38 @@ class CrmApplication : Application(), Configuration.Provider {
     lateinit var workerFactory: HiltWorkerFactory
 
     override val workManagerConfiguration: Configuration
-        get() = Configuration.Builder()
-            .setWorkerFactory(workerFactory)
-            .build()
+        get() {
+            AppLogger.d("App", "WorkManager requesting HiltWorkerFactory — workerFactory injected=${::workerFactory.isInitialized}")
+            return Configuration.Builder()
+                .setWorkerFactory(workerFactory)
+                .build()
+        }
 
     override fun onCreate() {
         super.onCreate()
-        // Schedule periodic background sync
-        SyncWorker.schedulePeriodicSync(this)
+
+        // ── 1. Boot logger first so every subsequent log goes to file ────────
+        AppLogger.init(this)
+        AppLogger.i("App", "CrmApplication.onCreate() start")
+
+        // ── 2. Install global crash handler ──────────────────────────────────
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            AppLogger.crash(thread, throwable)
+            // Delegate to system handler so Android can show the crash dialog /
+            // restart the app normally.
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
+        AppLogger.i("App", "Global crash handler installed")
+
+        // ── 3. Schedule background sync ──────────────────────────────────────
+        try {
+            SyncWorker.schedulePeriodicSync(this)
+            AppLogger.i("App", "SyncWorker periodic sync scheduled")
+        } catch (e: Exception) {
+            AppLogger.e("App", "Failed to schedule SyncWorker", e)
+        }
+
+        AppLogger.i("App", "CrmApplication.onCreate() complete")
     }
 }

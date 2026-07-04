@@ -30,6 +30,10 @@ class AuthTokenStore @Inject constructor(
         prefs[accessTokenKey] != null
     }
 
+    val accessToken: Flow<String?> = context.authDataStore.data.map { prefs ->
+        prefs[accessTokenKey]
+    }
+
     val username: Flow<String?> = context.authDataStore.data.map { prefs ->
         prefs[usernameKey]
     }

@@ -37,6 +37,23 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            Disable WorkManager's default App Startup initializer so Hilt's
+            HiltWorkerFactory (injected in CrmApplication) is used instead.
+            Without this, WorkManagerInitializer may run before Hilt finishes
+            injection, causing UninitializedPropertyAccessException on 'workerFactory'.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
     </application>
 
 </manifest>

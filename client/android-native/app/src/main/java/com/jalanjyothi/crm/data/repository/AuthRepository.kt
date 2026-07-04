@@ -1,5 +1,6 @@
 package com.jalanjyothi.crm.data.repository
 
+import com.jalanjyothi.crm.AppLogger
 import com.jalanjyothi.crm.data.local.AuthTokenStore
 import com.jalanjyothi.crm.data.local.LocalAuthHelper
 import com.jalanjyothi.crm.data.local.dao.UserDao
@@ -34,6 +35,7 @@ class AuthRepository @Inject constructor(
      */
     suspend fun seedDefaultAdminIfNeeded() = withContext(Dispatchers.IO) {
         if (userDao.count() == 0) {
+            AppLogger.i("Auth", "First install: seeding default admin user")
             val hash = LocalAuthHelper.hashPassword("admin")
             userDao.upsert(
                 UserEntity(
@@ -44,6 +46,9 @@ class AuthRepository @Inject constructor(
                     createdAt = Instant.now().toString(),
                 )
             )
+            AppLogger.i("Auth", "Default admin seeded")
+        } else {
+            AppLogger.d("Auth", "Local users exist — skipping seed")
         }
     }
 
@@ -63,25 +68,32 @@ class AuthRepository @Inject constructor(
      */
     suspend fun login(username: String, password: String?): Result<LoginResponse> {
         val serverUrl = tokenStore.serverUrl.first()
+        AppLogger.i("Auth", "login() user='$username' serverUrl='${serverUrl.ifBlank { "<empty>" }}'")
         // No server URL configured — skip the network and use local auth directly
         if (serverUrl.isBlank() && password != null) {
+            AppLogger.i("Auth", "No server URL — falling back to local auth")
             return loginLocally(username, password)
         }
 
         return try {
             val response = api.login(LoginRequest(username, password))
             if (response.token != null && response.refreshToken != null && response.user != null) {
+                AppLogger.i("Auth", "Server login OK — user='${response.user.username}' role='${response.user.role}'")
                 tokenStore.saveTokens(response.token, response.refreshToken)
                 tokenStore.saveUser(response.user.username, response.user.role)
                 // Cache credentials locally for future offline logins
                 if (password != null) {
                     cacheUserLocally(response.user.username, password, response.user.role)
                 }
+            } else {
+                AppLogger.i("Auth", "Server login partial response: token=${response.token != null} otpSent=${response.otpSent}")
             }
             Result.success(response)
         } catch (e: Exception) {
+            AppLogger.w("Auth", "Server login failed: ${e.javaClass.simpleName}: ${e.message}")
             // Fall back to local auth only for genuine network errors (not 401/423)
             if (password != null && isNetworkError(e)) {
+                AppLogger.i("Auth", "Network error — trying local auth fallback")
                 loginLocally(username, password)
             } else {
                 Result.failure(e)
@@ -90,41 +102,66 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun verifyToken(): Boolean {
-        val token = tokenStore.getAccessToken() ?: return false
+        val token = tokenStore.getAccessToken()
+        if (token == null) {
+            AppLogger.i("Auth", "verifyToken(): no token stored — not logged in")
+            return false
+        }
         // Local session — verify the cached user still exists and is active
         if (token.startsWith("local-")) {
+            AppLogger.d("Auth", "verifyToken(): local session token found")
             val uname = tokenStore.username.first() ?: return false
             return withContext(Dispatchers.IO) {
                 val user = userDao.getByUsername(uname)
-                user != null && user.isActive
+                val valid = user != null && user.isActive
+                AppLogger.i("Auth", "verifyToken(): local user='$uname' valid=$valid")
+                valid
             }
         }
+        AppLogger.d("Auth", "verifyToken(): calling server verify endpoint")
         return try {
-            api.verifyToken().valid
-        } catch (_: Exception) {
+            val valid = api.verifyToken().valid
+            AppLogger.i("Auth", "verifyToken(): server says valid=$valid")
+            valid
+        } catch (e: Exception) {
+            AppLogger.w("Auth", "verifyToken(): server error (${e.javaClass.simpleName}: ${e.message}) — trying token refresh")
             refreshToken()
         }
     }
 
     private suspend fun refreshToken(): Boolean {
-        val refresh = tokenStore.getRefreshToken() ?: return false
+        val refresh = tokenStore.getRefreshToken()
+        if (refresh == null) {
+            AppLogger.w("Auth", "refreshToken(): no refresh token stored — clearing session")
+            tokenStore.clear()
+            return false
+        }
         // Re-validate local session without hitting the network
         if (refresh == "local-refresh") {
+            AppLogger.d("Auth", "refreshToken(): local session refresh")
             val uname = tokenStore.username.first() ?: return false
             return withContext(Dispatchers.IO) {
                 val user = userDao.getByUsername(uname) ?: run {
+                    AppLogger.w("Auth", "refreshToken(): local user '$uname' not found — clearing session")
                     tokenStore.clear(); return@withContext false
                 }
-                if (!user.isActive) { tokenStore.clear(); return@withContext false }
+                if (!user.isActive) {
+                    AppLogger.w("Auth", "refreshToken(): local user '$uname' is inactive — clearing session")
+                    tokenStore.clear(); return@withContext false
+                }
                 tokenStore.saveTokens("local-${System.currentTimeMillis()}", "local-refresh")
+                AppLogger.i("Auth", "refreshToken(): local session re-validated for '$uname'")
                 true
             }
         }
         return try {
+            AppLogger.d("Auth", "refreshToken(): calling server refresh endpoint")
             val response = api.refreshToken(RefreshRequest(refresh))
             tokenStore.saveTokens(response.token, response.refreshToken)
+            AppLogger.i("Auth", "refreshToken(): server refresh OK")
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLogger.w("Auth", "refreshToken(): server refresh failed (${e.message}) — clearing session")
             tokenStore.clear()
             false
         }

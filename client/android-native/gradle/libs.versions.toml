@@ -16,7 +16,7 @@ serialization-converter = "1.0.0"
 accompanist = "0.36.0"
 vico = "2.0.0-alpha.28"
 coil = "2.7.0"
-biometric = "1.2.0-alpha05"
+biometric = "1.1.0"
 work = "2.10.0"
 security-crypto = "1.1.0-alpha06"
 splash = "1.0.1"
@@ -67,7 +67,7 @@ coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutin
 accompanist-systemui = { group = "com.google.accompanist", name = "accompanist-systemuicontroller", version.ref = "accompanist" }
 vico-compose = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
-biometric = { group = "androidx.biometric", name = "biometric-ktx", version.ref = "biometric" }
+biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 splash = { group = "androidx.core", name = "core-splashscreen", version.ref = "splash" }
 
 # Background

@@ -2,11 +2,14 @@ package com.jalanjyothi.crm.data.remote
 
 import android.os.Build
 import com.jalanjyothi.crm.data.local.AuthTokenStore
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.Response
+import com.jalanjyothi.crm.AppLogger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -14,18 +17,40 @@ import javax.inject.Singleton
  * Intercepts every request and replaces the base URL with the one stored in DataStore.
  * This allows changing the server URL at runtime from the Settings screen without
  * rebuilding the APK.
+ *
+ * The server URL is cached in a @Volatile field updated by a coroutine collector so
+ * intercept() never calls runBlocking on the OkHttp thread (which can deadlock on
+ * low-end devices when the IO dispatcher is saturated).
  */
 @Singleton
 class ServerUrlInterceptor @Inject constructor(
     private val tokenStore: AuthTokenStore,
 ) : Interceptor {
 
+    // Initialised to the emulator/device default; updated whenever DataStore changes.
+    @Volatile private var cachedUrl: String = defaultServerUrl()
+
+    init {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            tokenStore.serverUrl.collect { url ->
+                if (url != cachedUrl) {
+                    AppLogger.i("Network", "Server URL updated: '${url.ifBlank { "<empty — offline mode>" }}'")
+                }
+                cachedUrl = url
+            }
+        }
+    }
+
     override fun intercept(chain: Interceptor.Chain): Response {
-        val serverUrl = runBlocking { tokenStore.serverUrl.first() }.trimEnd('/')
+        val serverUrl = cachedUrl.trimEnd('/')
         val originalRequest = chain.request()
 
         val baseUrl = serverUrl.toHttpUrlOrNull()
-            ?: return chain.proceed(originalRequest) // fallback — proceed unchanged
+        if (baseUrl == null) {
+            AppLogger.w("Network", "No valid server URL ('$serverUrl') — request proceeding with placeholder base URL. " +
+                "Configure the server URL in Settings.")
+            return chain.proceed(originalRequest)
+        }
 
         val newUrl = originalRequest.url.newBuilder()
             .scheme(baseUrl.scheme)

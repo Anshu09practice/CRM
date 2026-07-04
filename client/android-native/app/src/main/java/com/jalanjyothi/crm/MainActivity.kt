@@ -20,6 +20,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.jalanjyothi.crm.AppLogger
 import com.jalanjyothi.crm.ui.navigation.AppNavHost
 import com.jalanjyothi.crm.ui.navigation.BottomNavBar
 import com.jalanjyothi.crm.ui.navigation.Screen
@@ -30,9 +31,11 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        AppLogger.i("MainActivity", "onCreate() start — savedInstanceState=${savedInstanceState != null}")
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        AppLogger.i("MainActivity", "edge-to-edge enabled, building Compose content")
 
         setContent {
             JJCrmTheme {
@@ -76,5 +79,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        AppLogger.i("MainActivity", "onCreate() complete — UI composed")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        AppLogger.d("MainActivity", "onResume()")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        AppLogger.i("MainActivity", "onDestroy()")
     }
 }
