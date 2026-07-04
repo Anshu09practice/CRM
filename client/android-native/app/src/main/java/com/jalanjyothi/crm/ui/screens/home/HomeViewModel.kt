@@ -7,6 +7,7 @@ import com.jalanjyothi.crm.data.remote.ApiService
 import com.jalanjyothi.crm.data.remote.DashboardSummary
 import com.jalanjyothi.crm.data.remote.ItemDto
 import com.jalanjyothi.crm.data.remote.SalesTrendItem
+import com.jalanjyothi.crm.data.repository.OfflineRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,12 +26,14 @@ data class HomeUiState(
     val summary: DashboardSummary? = null,
     val salesTrend: List<SalesTrendItem> = emptyList(),
     val lowStockItems: List<ItemDto> = emptyList(),
+    val isOffline: Boolean = false,
     val error: String? = null,
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val api: ApiService,
+    private val repository: OfflineRepository,
     private val tokenStore: AuthTokenStore,
 ) : ViewModel() {
 
@@ -43,17 +46,20 @@ class HomeViewModel @Inject constructor(
 
     fun loadDashboard() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true, error = null, isOffline = false) }
 
             val username = tokenStore.username.first() ?: "there"
             val greeting = getGreeting()
-
             _uiState.update { it.copy(greeting = greeting, username = username) }
 
+            // Try live server data first
             try {
-                val summaryDeferred = async { api.getDashboardSummary() }
-                val trendDeferred = async { api.getSalesTrend() }
-                val lowStockDeferred = async { api.getLowStockItems() }
+                val summaryDeferred   = async { api.getDashboardSummary() }
+                val trendDeferred     = async { api.getSalesTrend() }
+                val lowStockDeferred  = async { api.getLowStockItems() }
+
+                // Background sync so local Room stays fresh for next offline session
+                launch { repository.syncItems() }
 
                 _uiState.update {
                     it.copy(
@@ -61,11 +67,27 @@ class HomeViewModel @Inject constructor(
                         summary = summaryDeferred.await(),
                         salesTrend = trendDeferred.await(),
                         lowStockItems = lowStockDeferred.await(),
+                        isOffline = false,
                     )
                 }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(isLoading = false, error = "Couldn't load dashboard")
+            } catch (_: Exception) {
+                // Server unreachable — compute dashboard from local Room data
+                try {
+                    val localSummary  = repository.computeLocalDashboard()
+                    val localLowStock = repository.getLocalLowStockItems()
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            summary = localSummary,
+                            salesTrend = emptyList(),
+                            lowStockItems = localLowStock,
+                            isOffline = true,
+                        )
+                    }
+                } catch (localErr: Exception) {
+                    _uiState.update {
+                        it.copy(isLoading = false, error = "Couldn't load dashboard")
+                    }
                 }
             }
         }

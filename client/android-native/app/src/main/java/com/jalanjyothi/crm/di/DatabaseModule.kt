@@ -30,7 +30,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "jj_crm_db",
         )
-            .fallbackToDestructiveMigration()
+            .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
 

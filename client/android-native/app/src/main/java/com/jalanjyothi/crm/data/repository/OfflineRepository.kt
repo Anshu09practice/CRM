@@ -15,8 +15,16 @@ import com.jalanjyothi.crm.data.local.entity.ItemEntity
 import com.jalanjyothi.crm.data.local.entity.PendingMutation
 import com.jalanjyothi.crm.data.local.entity.PurchaseEntity
 import com.jalanjyothi.crm.data.remote.ApiService
+import com.jalanjyothi.crm.data.remote.CustomersSummary
+import com.jalanjyothi.crm.data.remote.DashboardSummary
+import com.jalanjyothi.crm.data.remote.InventorySummary
+import com.jalanjyothi.crm.data.remote.ItemDto
+import com.jalanjyothi.crm.data.remote.MonthlySummary
+import com.jalanjyothi.crm.data.remote.PendingPayments
+import com.jalanjyothi.crm.data.remote.TodaySummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -160,6 +168,50 @@ class OfflineRepository @Inject constructor(
         } catch (_: Exception) { }
     }
 
+    // ─── Local Dashboard (offline fallback) ──────────────────────────────────
+
+    suspend fun computeLocalDashboard(): DashboardSummary {
+        val today = LocalDate.now().toString()                       // "2025-07-04"
+        val currentMonth = today.substring(0, 7)                    // "2025-07"
+        val prevMonth = LocalDate.now().minusMonths(1).toString().substring(0, 7)
+
+        val todayRevenue   = billDao.getRevenueForDate(today)
+        val todayCount     = billDao.getSalesCountForDate(today)
+        val monthRevenue   = billDao.getRevenueForMonth(currentMonth)
+        val monthCount     = billDao.getSalesCountForMonth(currentMonth)
+        val prevRevenue    = billDao.getRevenueForMonth(prevMonth)
+        val monthExpenses  = expenseDao.getTotalForMonth(currentMonth)
+        val monthPurchases = purchaseDao.getTotalCostForMonth(currentMonth)
+        val pendingAmt     = billDao.getTotalPending()
+        val pendingCnt     = billDao.getPendingCount()
+        val itemCount      = itemDao.getCount()
+        val lowStockCount  = itemDao.getLowStockCount()
+        val stockValue     = itemDao.getStockValue()
+        val customerCount  = customerDao.getCount()
+
+        return DashboardSummary(
+            today = TodaySummary(salesCount = todayCount, revenue = todayRevenue),
+            monthly = MonthlySummary(
+                revenue = monthRevenue,
+                salesCount = monthCount,
+                prevMonthRevenue = prevRevenue,
+                expenses = monthExpenses,
+                purchases = monthPurchases,
+                profit = monthRevenue - monthExpenses - monthPurchases,
+            ),
+            pendingPayments = PendingPayments(count = pendingCnt, amount = pendingAmt),
+            inventory = InventorySummary(
+                totalItems = itemCount,
+                stockValue = stockValue,
+                lowStockCount = lowStockCount,
+            ),
+            customers = CustomersSummary(total = customerCount),
+        )
+    }
+
+    suspend fun getLocalLowStockItems(): List<ItemDto> =
+        itemDao.getLowStockList().map { it.toItemDto() }
+
     // ─── Sync All ─────────────────────────────────────────────────────────────
 
     suspend fun syncAll() {
@@ -231,3 +283,21 @@ class OfflineRepository @Inject constructor(
         }
     }
 }
+
+// ─── Entity → DTO mapper (shared utility) ─────────────────────────────────────
+
+fun ItemEntity.toItemDto() = ItemDto(
+    id = id,
+    skuId = skuId,
+    itemName = itemName,
+    packageQuantityGrams = packageQuantityGrams,
+    purchaseCost = purchaseCost,
+    sellingPrice = sellingPrice,
+    mrp = mrp,
+    packagingStyle = packagingStyle,
+    currentStock = currentStock,
+    lowStockThreshold = lowStockThreshold,
+    defaultTaxPercent = defaultTaxPercent,
+    categoryId = categoryId,
+    categoryName = categoryName,
+)

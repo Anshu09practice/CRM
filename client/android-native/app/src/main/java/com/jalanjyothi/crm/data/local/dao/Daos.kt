@@ -20,17 +20,32 @@ interface ItemDao {
     @Query("SELECT * FROM items ORDER BY item_name ASC")
     fun getAll(): Flow<List<ItemEntity>>
 
+    @Query("SELECT * FROM items ORDER BY item_name ASC")
+    suspend fun getAllList(): List<ItemEntity>
+
     @Query("SELECT * FROM items WHERE item_name LIKE '%' || :query || '%'")
     fun search(query: String): Flow<List<ItemEntity>>
 
     @Query("SELECT * FROM items WHERE current_stock <= low_stock_threshold")
     fun getLowStock(): Flow<List<ItemEntity>>
 
+    @Query("SELECT * FROM items WHERE current_stock <= low_stock_threshold ORDER BY current_stock ASC")
+    suspend fun getLowStockList(): List<ItemEntity>
+
     @Query("SELECT * FROM items WHERE current_stock > 0")
     fun getAvailableStock(): Flow<List<ItemEntity>>
 
     @Query("SELECT * FROM items WHERE id = :id")
     suspend fun getById(id: Int): ItemEntity?
+
+    @Query("SELECT COUNT(*) FROM items")
+    suspend fun getCount(): Int
+
+    @Query("SELECT COUNT(*) FROM items WHERE current_stock <= low_stock_threshold")
+    suspend fun getLowStockCount(): Int
+
+    @Query("SELECT COALESCE(SUM(purchase_cost * current_stock), 0.0) FROM items")
+    suspend fun getStockValue(): Double
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(items: List<ItemEntity>)
@@ -62,11 +77,17 @@ interface CustomerDao {
     @Query("SELECT * FROM customers ORDER BY name ASC")
     fun getAll(): Flow<List<CustomerEntity>>
 
+    @Query("SELECT * FROM customers ORDER BY name ASC")
+    suspend fun getAllList(): List<CustomerEntity>
+
     @Query("SELECT * FROM customers WHERE name LIKE '%' || :query || '%' OR phone LIKE '%' || :query || '%'")
     fun search(query: String): Flow<List<CustomerEntity>>
 
     @Query("SELECT * FROM customers WHERE id = :id")
     suspend fun getById(id: Int): CustomerEntity?
+
+    @Query("SELECT COUNT(*) FROM customers")
+    suspend fun getCount(): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(customers: List<CustomerEntity>)
@@ -82,6 +103,9 @@ interface CustomerDao {
 interface BillDao {
     @Query("SELECT * FROM bills ORDER BY bill_date DESC")
     fun getAll(): Flow<List<BillEntity>>
+
+    @Query("SELECT * FROM bills ORDER BY bill_date DESC")
+    suspend fun getAllList(): List<BillEntity>
 
     @Query("SELECT * FROM bills WHERE customer_name LIKE '%' || :query || '%' OR bill_number LIKE '%' || :query || '%'")
     fun search(query: String): Flow<List<BillEntity>>
@@ -110,14 +134,23 @@ interface BillDao {
     @Query("DELETE FROM bills")
     suspend fun deleteAll()
 
+    @Query("DELETE FROM bill_items")
+    suspend fun deleteAllBillItems()
+
     // Dashboard queries
-    @Query("SELECT COALESCE(SUM(total), 0) FROM bills WHERE bill_date = :date")
+    @Query("SELECT COALESCE(SUM(total), 0.0) FROM bills WHERE bill_date = :date")
     suspend fun getRevenueForDate(date: String): Double
 
     @Query("SELECT COUNT(*) FROM bills WHERE bill_date = :date")
     suspend fun getSalesCountForDate(date: String): Int
 
-    @Query("SELECT COALESCE(SUM(total - amount_paid), 0) FROM bills WHERE payment_status IN ('pending', 'partial', 'overdue')")
+    @Query("SELECT COALESCE(SUM(total), 0.0) FROM bills WHERE bill_date LIKE :monthPrefix || '%'")
+    suspend fun getRevenueForMonth(monthPrefix: String): Double
+
+    @Query("SELECT COUNT(*) FROM bills WHERE bill_date LIKE :monthPrefix || '%'")
+    suspend fun getSalesCountForMonth(monthPrefix: String): Int
+
+    @Query("SELECT COALESCE(SUM(total - amount_paid), 0.0) FROM bills WHERE payment_status IN ('pending', 'partial', 'overdue')")
     suspend fun getTotalPending(): Double
 
     @Query("SELECT COUNT(*) FROM bills WHERE payment_status IN ('pending', 'partial', 'overdue')")
@@ -129,8 +162,14 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses ORDER BY expense_date DESC")
     fun getAll(): Flow<List<ExpenseEntity>>
 
+    @Query("SELECT * FROM expenses ORDER BY expense_date DESC")
+    suspend fun getAllList(): List<ExpenseEntity>
+
     @Query("SELECT * FROM expenses WHERE expense_date BETWEEN :from AND :to ORDER BY expense_date DESC")
     fun getByDateRange(from: String, to: String): Flow<List<ExpenseEntity>>
+
+    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM expenses WHERE expense_date LIKE :monthPrefix || '%'")
+    suspend fun getTotalForMonth(monthPrefix: String): Double
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(expenses: List<ExpenseEntity>)
@@ -149,6 +188,12 @@ interface ExpenseDao {
 interface PurchaseDao {
     @Query("SELECT * FROM purchases ORDER BY purchase_date DESC")
     fun getAll(): Flow<List<PurchaseEntity>>
+
+    @Query("SELECT * FROM purchases ORDER BY purchase_date DESC")
+    suspend fun getAllList(): List<PurchaseEntity>
+
+    @Query("SELECT COALESCE(SUM(total_cost), 0.0) FROM purchases WHERE purchase_date LIKE :monthPrefix || '%'")
+    suspend fun getTotalCostForMonth(monthPrefix: String): Double
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(purchases: List<PurchaseEntity>)

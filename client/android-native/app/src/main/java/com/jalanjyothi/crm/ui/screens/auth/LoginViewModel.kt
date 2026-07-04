@@ -37,7 +37,8 @@ class LoginViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val url = tokenStore.serverUrl.first()
-            _uiState.update { it.copy(serverUrl = url, serverUrlExpanded = url.isBlank()) }
+            // Don't auto-expand — URL field stays collapsed until user taps
+            _uiState.update { it.copy(serverUrl = url) }
         }
     }
 

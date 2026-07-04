@@ -118,19 +118,16 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-                // ─── Server URL (compact indicator or expanded field) ──────────────
-                // Compact row — shown when URL is already configured and not editing
+                // ─── Server URL (compact indicator, tap to expand) ────────────────
                 AnimatedVisibility(
-                    visible = uiState.serverUrl.isNotBlank() && !uiState.serverUrlExpanded,
+                    visible = !uiState.serverUrlExpanded && !uiState.showPasswordField,
                     enter = expandVertically() + fadeIn(),
                     exit = shrinkVertically() + fadeOut(),
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = !uiState.showPasswordField) {
-                                viewModel.onToggleServerUrl()
-                            }
+                            .clickable { viewModel.onToggleServerUrl() }
                             .padding(vertical = 8.dp, horizontal = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
@@ -146,28 +143,25 @@ fun LoginScreen(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
-                                text = uiState.serverUrl
-                                    .removePrefix("https://")
-                                    .removePrefix("http://"),
+                                text = if (uiState.serverUrl.isBlank()) "Offline mode (tap to set server)"
+                                       else uiState.serverUrl.removePrefix("https://").removePrefix("http://"),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        if (!uiState.showPasswordField) {
-                            androidx.compose.material3.Icon(
-                                imageVector = Icons.Outlined.Edit,
-                                contentDescription = "Change server URL",
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
+                        androidx.compose.material3.Icon(
+                            imageVector = Icons.Outlined.Edit,
+                            contentDescription = "Configure server URL",
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
                     }
                 }
 
-                // Expanded URL field — shown when URL is blank or being edited
+                // Expanded URL field — shown when explicitly expanded
                 AnimatedVisibility(
-                    visible = uiState.serverUrl.isBlank() || uiState.serverUrlExpanded,
+                    visible = uiState.serverUrlExpanded,
                     enter = expandVertically(
                         animationSpec = spring(
                             dampingRatio = Spring.DampingRatioLowBouncy,
@@ -187,7 +181,6 @@ fun LoginScreen(
                             keyboardType = KeyboardType.Uri,
                             imeAction = ImeAction.Next,
                         ),
-                        error = if (uiState.serverUrl.isBlank()) uiState.error else null,
                     )
                 }
 
