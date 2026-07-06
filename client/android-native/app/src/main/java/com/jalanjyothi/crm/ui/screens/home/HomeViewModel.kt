@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import java.time.LocalTime
 import javax.inject.Inject
 
@@ -52,43 +53,59 @@ class HomeViewModel @Inject constructor(
             val greeting = getGreeting()
             _uiState.update { it.copy(greeting = greeting, username = username) }
 
+            // Skip network entirely if no server URL is configured — go straight to
+            // local Room data without waiting for a connection timeout.
+            val serverUrl = tokenStore.serverUrl.first()
+            if (serverUrl.isBlank()) {
+                loadLocalDashboard()
+                return@launch
+            }
+
             // Try live server data first
             try {
-                val summaryDeferred   = async { api.getDashboardSummary() }
-                val trendDeferred     = async { api.getSalesTrend() }
-                val lowStockDeferred  = async { api.getLowStockItems() }
+                // supervisorScope prevents a ConnectException from one async block
+                // from cancelling the other concurrent calls and escaping the try-catch.
+                supervisorScope {
+                    val summaryDeferred   = async { api.getDashboardSummary() }
+                    val trendDeferred     = async { api.getSalesTrend() }
+                    val lowStockDeferred  = async { api.getLowStockItems() }
 
-                // Background sync so local Room stays fresh for next offline session
-                launch { repository.syncItems() }
+                    // Background sync so local Room stays fresh for next offline session
+                    launch { repository.syncItems() }
 
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        summary = summaryDeferred.await(),
-                        salesTrend = trendDeferred.await(),
-                        lowStockItems = lowStockDeferred.await(),
-                        isOffline = false,
-                    )
-                }
-            } catch (_: Exception) {
-                // Server unreachable — compute dashboard from local Room data
-                try {
-                    val localSummary  = repository.computeLocalDashboard()
-                    val localLowStock = repository.getLocalLowStockItems()
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            summary = localSummary,
-                            salesTrend = emptyList(),
-                            lowStockItems = localLowStock,
-                            isOffline = true,
+                            summary = summaryDeferred.await(),
+                            salesTrend = trendDeferred.await(),
+                            lowStockItems = lowStockDeferred.await(),
+                            isOffline = false,
                         )
                     }
-                } catch (localErr: Exception) {
-                    _uiState.update {
-                        it.copy(isLoading = false, error = "Couldn't load dashboard")
-                    }
                 }
+            } catch (_: Exception) {
+                // Server unreachable — load from local Room data
+                loadLocalDashboard()
+            }
+        }
+    }
+
+    private suspend fun loadLocalDashboard() {
+        try {
+            val localSummary  = repository.computeLocalDashboard()
+            val localLowStock = repository.getLocalLowStockItems()
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    summary = localSummary,
+                    salesTrend = emptyList(),
+                    lowStockItems = localLowStock,
+                    isOffline = true,
+                )
+            }
+        } catch (e: Exception) {
+            _uiState.update {
+                it.copy(isLoading = false, error = "Couldn't load dashboard")
             }
         }
     }
