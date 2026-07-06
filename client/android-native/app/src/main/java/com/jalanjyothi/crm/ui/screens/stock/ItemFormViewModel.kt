@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.jalanjyothi.crm.data.remote.ApiService
 import com.jalanjyothi.crm.data.remote.CategoryDto
 import com.jalanjyothi.crm.data.remote.CreateItemRequest
+import com.jalanjyothi.crm.data.repository.OfflineRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,12 +37,14 @@ data class ItemFormUiState(
     val profitPerUnit: Double = 0.0,
 
     val nameError: String? = null,
+    val quantityError: String? = null,
     val error: String? = null,
 )
 
 @HiltViewModel
 class ItemFormViewModel @Inject constructor(
     private val api: ApiService,
+    private val repository: OfflineRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -95,7 +98,7 @@ class ItemFormViewModel @Inject constructor(
     }
 
     fun onPackageQuantityChange(value: String) {
-        _uiState.update { it.copy(packageQuantity = value) }
+        _uiState.update { it.copy(packageQuantity = value, quantityError = null) }
     }
 
     fun onPurchaseCostChange(value: String) {
@@ -128,8 +131,15 @@ class ItemFormViewModel @Inject constructor(
 
     fun save(onSuccess: () -> Unit) {
         val state = _uiState.value
+
+        // Client-side validation
         if (state.itemName.isBlank()) {
             _uiState.update { it.copy(nameError = "Item name is required") }
+            return
+        }
+        val qty = state.packageQuantity.toDoubleOrNull() ?: 0.0
+        if (qty <= 0) {
+            _uiState.update { it.copy(quantityError = "Package weight must be greater than 0") }
             return
         }
 
@@ -138,7 +148,7 @@ class ItemFormViewModel @Inject constructor(
             try {
                 val request = CreateItemRequest(
                     itemName = state.itemName.trim(),
-                    packageQuantityGrams = state.packageQuantity.toDoubleOrNull() ?: 0.0,
+                    packageQuantityGrams = qty,
                     purchaseCost = state.purchaseCost.toDoubleOrNull() ?: 0.0,
                     sellingPrice = state.sellingPrice.toDoubleOrNull() ?: 0.0,
                     mrp = state.mrp.toDoubleOrNull(),
@@ -154,10 +164,13 @@ class ItemFormViewModel @Inject constructor(
                     api.createItem(request)
                 }
 
+                // Refresh local Room cache so StockScreen list updates immediately
+                repository.syncItems()
+
                 _uiState.update { it.copy(isSaving = false) }
                 onSuccess()
             } catch (e: Exception) {
-                _uiState.update { it.copy(isSaving = false, error = "Failed to save item") }
+                _uiState.update { it.copy(isSaving = false, error = e.message ?: "Failed to save item. Check all fields and try again.") }
             }
         }
     }

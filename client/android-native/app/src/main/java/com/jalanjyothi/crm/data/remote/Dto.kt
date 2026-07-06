@@ -348,3 +348,42 @@ data class CategoryDto(
     val name: String,
     val description: String? = null,
 )
+
+// ─── Purchase Create Request ──────────────────────────────────────────────────
+
+@Serializable
+data class CreatePurchaseRequest(
+    @SerialName("item_id") val itemId: Int,
+    val quantity: Int,
+    @SerialName("purchase_cost") val purchaseCost: Double? = null,
+    @SerialName("purchase_date") val purchaseDate: String? = null,
+    val notes: String? = null,
+)
+
+// ─── Bulk Update DTOs ─────────────────────────────────────────────────────────
+
+@Serializable
+data class BulkUpdateItemRequest(
+    val id: Int? = null,
+    @SerialName("sku_id") val skuId: String? = null,
+    @SerialName("item_name") val itemName: String,
+    @SerialName("package_quantity_grams") val packageQuantityGrams: Double = 0.0,
+    @SerialName("purchase_cost") val purchaseCost: Double = 0.0,
+    @SerialName("selling_price") val sellingPrice: Double = 0.0,
+    val mrp: Double? = null,
+    @SerialName("packaging_style") val packagingStyle: String? = null,
+    val category: String? = null,
+)
+
+@Serializable
+data class BulkUpdateItemsRequest(
+    val items: List<BulkUpdateItemRequest>,
+)
+
+@Serializable
+data class BulkUpdateResponse(
+    val message: String? = null,
+    val updated: Int = 0,
+    val created: Int = 0,
+    val errors: List<String> = emptyList(),
+)

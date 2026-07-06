@@ -24,7 +24,9 @@ import com.jalanjyothi.crm.ui.screens.home.HomeScreen
 import com.jalanjyothi.crm.ui.screens.more.MoreScreen
 import com.jalanjyothi.crm.ui.screens.profile.ProfileScreen
 import com.jalanjyothi.crm.ui.screens.settings.SettingsScreen
+import com.jalanjyothi.crm.ui.screens.stock.BulkUpdateScreen
 import com.jalanjyothi.crm.ui.screens.stock.ItemFormScreen
+import com.jalanjyothi.crm.ui.screens.stock.PurchaseFormScreen
 import com.jalanjyothi.crm.ui.screens.stock.StockScreen
 
 private const val TRANSITION_DURATION = 300
@@ -132,7 +134,9 @@ fun AppNavHost(
             StockScreen(
                 onCreateItem = { navController.navigate(Screen.ItemForm.route) },
                 onEditItem = { id -> navController.navigate(Screen.ItemEdit.withId(id)) },
-                onNavigateToPurchases = { navController.navigate(Screen.Purchases.route) },
+                onAddPurchase = { navController.navigate(Screen.PurchaseForm.route) },
+                onBulkUpdate = { navController.navigate(Screen.BulkUpdate.route) },
+                onNavigateToPurchases = { /* Purchases are embedded in StockScreen tabs */ },
             )
         }
 
@@ -177,6 +181,14 @@ fun AppNavHost(
                 itemId = it.arguments?.getInt("itemId"),
                 onBack = { navController.popBackStack() },
             )
+        }
+
+        composable(route = Screen.PurchaseForm.route) {
+            PurchaseFormScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(route = Screen.BulkUpdate.route) {
+            BulkUpdateScreen(onBack = { navController.popBackStack() })
         }
 
         composable(route = Screen.Customers.route) {

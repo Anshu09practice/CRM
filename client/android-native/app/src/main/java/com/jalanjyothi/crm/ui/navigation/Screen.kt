@@ -35,6 +35,8 @@ sealed class Screen(val route: String) {
     data object ItemEdit : Screen("item/{itemId}/edit") {
         fun withId(id: Int) = "item/$id/edit"
     }
+    data object PurchaseForm : Screen("purchase/create")
+    data object BulkUpdate : Screen("inventory/bulk-update")
     data object CustomerDetail : Screen("customer/{customerId}") {
         fun withId(id: Int) = "customer/$id"
     }

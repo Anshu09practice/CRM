@@ -25,12 +25,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.TrendingDown
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Receipt
-import androidx.compose.material.icons.outlined.TrendingDown
-import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -223,8 +223,8 @@ private fun RevenueCard(
                 // Monthly growth indicator
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = if (growthPercent >= 0) Icons.Outlined.TrendingUp
-                        else Icons.Outlined.TrendingDown,
+                        imageVector = if (growthPercent >= 0) Icons.AutoMirrored.Outlined.TrendingUp
+                        else Icons.AutoMirrored.Outlined.TrendingDown,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = Color.White.copy(alpha = 0.9f),

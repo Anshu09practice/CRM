@@ -134,7 +134,7 @@ interface ApiService {
     ): PurchasesResponse
 
     @POST("api/purchases")
-    suspend fun createPurchase(@Body request: PurchaseDto): PurchaseDto
+    suspend fun createPurchase(@Body request: CreatePurchaseRequest): PurchaseDto
 
     @PUT("api/purchases/{id}")
     suspend fun updatePurchase(@Path("id") id: Int, @Body request: PurchaseDto): PurchaseDto
@@ -148,6 +148,10 @@ interface ApiService {
 
     @POST("api/categories")
     suspend fun createCategory(@Body request: CategoryDto): CategoryDto
+
+    // ─── Bulk Update ──────────────────────────────────────────────────────────────────────
+    @POST("api/items/bulk-update")
+    suspend fun bulkUpdateItems(@Body request: BulkUpdateItemsRequest): BulkUpdateResponse
 
     @DELETE("api/categories/{id}")
     suspend fun deleteCategory(@Path("id") id: Int): GenericResponse

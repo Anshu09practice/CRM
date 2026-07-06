@@ -192,11 +192,20 @@ interface PurchaseDao {
     @Query("SELECT * FROM purchases ORDER BY purchase_date DESC")
     suspend fun getAllList(): List<PurchaseEntity>
 
+    @Query("SELECT * FROM purchases WHERE item_name LIKE '%' || :query || '%' ORDER BY purchase_date DESC")
+    fun search(query: String): Flow<List<PurchaseEntity>>
+
     @Query("SELECT COALESCE(SUM(total_cost), 0.0) FROM purchases WHERE purchase_date LIKE :monthPrefix || '%'")
     suspend fun getTotalCostForMonth(monthPrefix: String): Double
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(purchases: List<PurchaseEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(purchase: PurchaseEntity)
+
+    @Query("DELETE FROM purchases WHERE id = :id")
+    suspend fun delete(id: Int)
 
     @Query("DELETE FROM purchases")
     suspend fun deleteAll()

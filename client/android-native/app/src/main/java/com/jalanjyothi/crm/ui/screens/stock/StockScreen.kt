@@ -22,12 +22,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -61,6 +63,8 @@ import com.jalanjyothi.crm.ui.theme.Warning500
 fun StockScreen(
     onCreateItem: () -> Unit,
     onEditItem: (Int) -> Unit,
+    onAddPurchase: () -> Unit,
+    onBulkUpdate: () -> Unit,
     onNavigateToPurchases: () -> Unit,
     viewModel: StockViewModel = hiltViewModel(),
 ) {
@@ -70,12 +74,15 @@ fun StockScreen(
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onCreateItem,
+                onClick = { if (selectedTab == 0) onCreateItem() else onAddPurchase() },
                 shape = MaterialTheme.shapes.extraLarge,
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Item")
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = if (selectedTab == 0) "Add Item" else "Record Purchase",
+                )
             }
         },
     ) { innerPadding ->
@@ -118,6 +125,7 @@ fun StockScreen(
                     uiState = uiState,
                     onSearchChange = viewModel::onSearchChange,
                     onItemClick = onEditItem,
+                    onBulkUpdate = onBulkUpdate,
                 )
                 1 -> {
                     PurchasesTab()
@@ -132,16 +140,29 @@ private fun InventoryTab(
     uiState: StockUiState,
     onSearchChange: (String) -> Unit,
     onItemClick: (Int) -> Unit,
+    onBulkUpdate: () -> Unit,
 ) {
     Column {
-        // Search
-        AppTextField(
-            value = uiState.searchQuery,
-            onValueChange = onSearchChange,
-            placeholder = "Search items",
-            leadingIcon = Icons.Outlined.Search,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-        )
+        // Search + Bulk Update row
+        Row(
+            modifier = Modifier.padding(start = 24.dp, end = 8.dp, top = 12.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AppTextField(
+                value = uiState.searchQuery,
+                onValueChange = onSearchChange,
+                placeholder = "Search items",
+                leadingIcon = Icons.Outlined.Search,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onBulkUpdate) {
+                Icon(
+                    Icons.Outlined.DriveFileRenameOutline,
+                    contentDescription = "Bulk Update",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
 
         when {
             uiState.isLoading -> {

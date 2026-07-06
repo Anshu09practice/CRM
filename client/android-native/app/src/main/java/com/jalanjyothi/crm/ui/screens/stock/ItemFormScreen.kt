@@ -22,7 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material3.Card
@@ -72,7 +72,7 @@ fun ItemFormScreen(
                 title = { Text(if (uiState.isEditing) "Edit Item" else "New Item") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -122,8 +122,7 @@ fun ItemFormScreen(
                 value = uiState.packageQuantity,
                 onValueChange = viewModel::onPackageQuantityChange,
                 label = "Package Weight (grams)",
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            )
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),                error = uiState.quantityError,            )
 
             // ─── Category Chips ───────────────────────────────────────────────
             Text(
@@ -250,7 +249,23 @@ fun ItemFormScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-
+            // ─── Error Display ──────────────────────────────────────────────────────────────────
+            uiState.error?.let { err ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                    ),
+                    shape = MaterialTheme.shapes.medium,
+                ) {
+                    Text(
+                        text = err,
+                        modifier = Modifier.padding(12.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
             // ─── Submit ───────────────────────────────────────────────────────
             PrimaryButton(
                 text = if (uiState.isEditing) "Save Changes" else "Add Item",

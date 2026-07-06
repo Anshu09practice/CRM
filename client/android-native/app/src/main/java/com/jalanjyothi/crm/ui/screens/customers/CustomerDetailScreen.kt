@@ -20,9 +20,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Call
-import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -73,7 +73,7 @@ fun CustomerDetailScreen(
                 title = { Text(uiState.customer?.name ?: "Customer") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -82,7 +82,7 @@ fun CustomerDetailScreen(
                             Icon(Icons.Outlined.Call, contentDescription = "Call")
                         }
                         IconButton(onClick = { /* TODO: WhatsApp intent */ }) {
-                            Icon(Icons.Outlined.Chat, contentDescription = "WhatsApp")
+                            Icon(Icons.AutoMirrored.Outlined.Chat, contentDescription = "WhatsApp")
                         }
                     }
                 },

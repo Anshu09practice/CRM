@@ -28,8 +28,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
@@ -37,10 +37,10 @@ import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -90,7 +90,7 @@ fun BillFormScreen(
                     IconButton(onClick = {
                         if (uiState.currentStep > 0) viewModel.previousStep() else onBack()
                     }) {
-                        Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -313,7 +313,7 @@ private fun ItemsStep(
 
         // Selected items
         if (uiState.selectedItems.isNotEmpty()) {
-            Divider(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp))
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp))
             Text(
                 text = "Selected (${uiState.selectedItems.size})",
                 style = MaterialTheme.typography.labelLarge,
@@ -454,7 +454,7 @@ private fun ReviewStep(
 
         // Discount
         item {
-            Divider()
+            HorizontalDivider()
             Spacer(modifier = Modifier.height(8.dp))
             AppTextField(
                 value = if (uiState.discountPercent > 0) uiState.discountPercent.toString() else "",
@@ -491,7 +491,7 @@ private fun ReviewStep(
 
         // Totals
         item {
-            Divider()
+            HorizontalDivider()
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text("Subtotal", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))

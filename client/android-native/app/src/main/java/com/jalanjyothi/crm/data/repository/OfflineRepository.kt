@@ -21,6 +21,7 @@ import com.jalanjyothi.crm.data.remote.InventorySummary
 import com.jalanjyothi.crm.data.remote.ItemDto
 import com.jalanjyothi.crm.data.remote.MonthlySummary
 import com.jalanjyothi.crm.data.remote.PendingPayments
+import com.jalanjyothi.crm.data.remote.PurchaseDto
 import com.jalanjyothi.crm.data.remote.TodaySummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
@@ -168,6 +169,31 @@ class OfflineRepository @Inject constructor(
         } catch (_: Exception) { }
     }
 
+    // ─── Purchases ────────────────────────────────────────────────────────────
+
+    fun observePurchases(): Flow<List<PurchaseEntity>> = purchaseDao.getAll()
+    fun searchPurchases(query: String): Flow<List<PurchaseEntity>> = purchaseDao.search(query)
+
+    suspend fun syncPurchases() {
+        try {
+            val response = api.getPurchases()
+            val entities = response.purchases.map {
+                PurchaseEntity(
+                    id = it.id,
+                    itemId = it.itemId,
+                    itemName = it.itemName,
+                    quantity = it.quantity,
+                    purchaseCost = it.purchaseCost,
+                    totalCost = it.totalCost,
+                    purchaseDate = it.purchaseDate,
+                    notes = it.notes,
+                )
+            }
+            purchaseDao.deleteAll()
+            purchaseDao.insertAll(entities)
+        } catch (_: Exception) { }
+    }
+
     // ─── Local Dashboard (offline fallback) ──────────────────────────────────
 
     suspend fun computeLocalDashboard(): DashboardSummary {
@@ -300,4 +326,15 @@ fun ItemEntity.toItemDto() = ItemDto(
     defaultTaxPercent = defaultTaxPercent,
     categoryId = categoryId,
     categoryName = categoryName,
+)
+
+fun PurchaseEntity.toPurchaseDto() = PurchaseDto(
+    id = id,
+    itemId = itemId,
+    itemName = itemName,
+    quantity = quantity,
+    purchaseCost = purchaseCost,
+    totalCost = totalCost,
+    purchaseDate = purchaseDate,
+    notes = notes,
 )
