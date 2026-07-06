@@ -1,0 +1,32 @@
+[07-06 10:41:58.304] ============================================================
+JJ CRM v2.0.0  —  log started
+Device  : Google sdk_gphone64_x86_64 (emu64xa)
+Android : 16  (API 36)
+ABI     : x86_64
+Fingerp : google/sdk_gphone64_x86_64/emu64xa:16/BE2A.250530.026.D1/13818094:user/release-keys
+LogFile : /storage/emulated/0/Android/data/com.jalanjyothi.crm/files/crm_debug.log
+============================================================
+
+[07-06 10:41:58.323] I App: CrmApplication.onCreate() start
+[07-06 10:41:58.324] I App: Global crash handler installed
+[07-06 10:41:58.346] D App: WorkManager requesting HiltWorkerFactory — workerFactory injected=true
+[07-06 10:41:58.429] I App: SyncWorker periodic sync scheduled
+[07-06 10:41:58.432] I App: CrmApplication.onCreate() complete
+[07-06 10:41:58.536] I MainActivity: onCreate() start — savedInstanceState=false
+[07-06 10:41:58.618] I MainActivity: edge-to-edge enabled, building Compose content
+[07-06 10:41:58.666] I MainActivity: onCreate() complete — UI composed
+[07-06 10:41:58.693] D MainActivity: onResume()
+[07-06 10:41:58.815] D Auth: Cached token updated: null (logged out)
+[07-06 10:41:59.098] I Auth: First install: seeding default admin user
+[07-06 10:42:00.554] I Sync: doWork() attempt #1
+[07-06 10:42:00.558] I Auth: verifyToken(): no token stored — not logged in
+[07-06 10:42:01.729] I Sync: Sync completed successfully
+[07-06 10:42:05.608] I Auth: Default admin seeded
+[07-06 10:42:28.516] D Auth: Cached token updated: null (logged out)
+[07-06 10:42:28.515] I Network: Server URL updated: 'https://192.168.1.10:3001'
+[07-06 10:42:49.795] I Auth: login() user='admin' serverUrl='https://192.168.1.10:3001'
+[07-06 10:42:50.622] W Auth: Server login failed: HttpException: HTTP 401 Unauthorized
+[07-06 10:43:21.858] I Auth: login() user='anshu9901' serverUrl='https://192.168.1.10:3001'
+[07-06 10:43:22.637] I Auth: Server login OK — user='anshu9901' role='employee'
+[07-06 10:43:22.663] D Auth: Cached token updated: server JWT (eyJhbGciOiJI…)
+[07-06 10:43:22.721] D Auth: Cached token updated: server JWT (eyJhbGciOiJI…)

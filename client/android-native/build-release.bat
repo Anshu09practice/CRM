@@ -37,10 +37,10 @@ if not defined KEY_PASSWORD (
 
 cd /d "%~dp0"
 
-echo Building Release APK...
-set GRADLE_OPTS=-Dorg.gradle.vfs.watch=false
+:: Disable file watcher + give R8 enough heap (Compose + Hilt needs ~3-4 GB)
+set GRADLE_OPTS=-Dorg.gradle.vfs.watch=false -Dorg.gradle.jvmargs=-Xmx4g
 
-:: Sign with keystore
+:: Verify keystore exists before starting the long build
 if not exist "%KEYSTORE_PATH%" (
   echo.
   echo ERROR: Keystore not found at: %KEYSTORE_PATH%
@@ -49,31 +49,84 @@ if not exist "%KEYSTORE_PATH%" (
   exit /b 1
 )
 
-echo Signing with keystore: %KEYSTORE_PATH%
-call gradlew.bat assembleRelease --parallel -Pandroid.injected.signing.store.file="%KEYSTORE_PATH%" -Pandroid.injected.signing.store.password="%KEYSTORE_PASSWORD%" -Pandroid.injected.signing.key.alias="%KEY_ALIAS%" -Pandroid.injected.signing.key.password="%KEY_PASSWORD%"
+:: ── Step 1: Clean ────────────────────────────────────────────────────────────
+:: Always clean before a release build to remove stale R8/KSP generated files.
+echo [1/2] Cleaning previous build outputs...
+call gradlew.bat clean --no-daemon
+if errorlevel 1 (
+  echo WARNING: Clean step failed, proceeding anyway...
+)
+echo.
+
+:: ── Step 2: Build ────────────────────────────────────────────────────────────
+:: IMPORTANT: Do NOT use --parallel here.
+::   --parallel can break Hilt/KSP annotation processing because generated
+::   classes may not exist yet when other tasks try to use them.
+:: Use --no-daemon for a fresh, isolated build process (no stale daemon state).
+echo [2/2] Building Release APK (R8 + Hilt typically takes ~7 minutes)...
+echo       Keystore: %KEYSTORE_PATH%
+echo.
+
+call gradlew.bat assembleRelease --no-daemon ^
+  -Pandroid.injected.signing.store.file="%KEYSTORE_PATH%" ^
+  -Pandroid.injected.signing.store.password="%KEYSTORE_PASSWORD%" ^
+  -Pandroid.injected.signing.key.alias="%KEY_ALIAS%" ^
+  -Pandroid.injected.signing.key.password="%KEY_PASSWORD%"
 
 if errorlevel 1 (
   echo.
-  echo ERROR: APK build failed!
+  echo =========================================
+  echo   ERROR: APK BUILD FAILED
+  echo   Check the output above for details.
+  echo =========================================
   pause
   exit /b 1
 )
 
-:: Generate checksum for integrity verification
+:: ── Step 3: Verify + Checksum ─────────────────────────────────────────────────
+set APK_PATH=app\build\outputs\apk\release\app-release.apk
+if not exist "%APK_PATH%" (
+  echo.
+  echo ERROR: APK not found at: %APK_PATH%
+  echo Check Gradle output above for errors.
+  pause
+  exit /b 1
+)
+
 echo.
 echo Generating SHA-256 checksum...
-set APK_PATH=app\build\outputs\apk\release\app-release.apk
-if exist "%APK_PATH%" (
-  certutil -hashfile "%APK_PATH%" SHA256 > "%APK_PATH%.sha256"
-  echo.
-  echo =========================================
-  echo   BUILD SUCCESSFUL
-  echo   APK: %APK_PATH%
-  echo   Checksum: %APK_PATH%.sha256
-  echo =========================================
-) else (
-  echo WARNING: APK not found at expected location.
-  echo Check build output above for errors.
+certutil -hashfile "%APK_PATH%" SHA256 > "%APK_PATH%.sha256"
+
+echo.
+echo =========================================
+echo   BUILD SUCCESSFUL
+echo.
+echo   APK  : %APK_PATH%
+for %%F in ("%APK_PATH%") do echo   Size : %%~zF bytes
+echo   Hash : %APK_PATH%.sha256
+echo =========================================
+echo.
+
+:: ── Step 4: Optional ADB Install ─────────────────────────────────────────────
+set ADB=%ANDROID_HOME%\platform-tools\adb.exe
+if exist "%ADB%" (
+  "%ADB%" devices 2>nul | find "device" >nul
+  if not errorlevel 1 (
+    echo A device/emulator is connected.
+    set /p INSTALL_CHOICE=Install release APK now? (Y/N): 
+    if /i "%INSTALL_CHOICE%"=="Y" (
+      echo Removing previous installation...
+      "%ADB%" uninstall com.jalanjyothi.crm >nul 2>&1
+      echo Installing...
+      "%ADB%" install "%APK_PATH%"
+      if errorlevel 1 (
+        echo WARNING: Install failed. The device may still have a debug APK
+        echo          with a different signature. Uninstall it manually first.
+      ) else (
+        echo APK installed successfully on device.
+      )
+    )
+  )
 )
 
 echo.

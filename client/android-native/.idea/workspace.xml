@@ -5,23 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="84e87899-e6b4-451c-820d-99a4fd04f877" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../../.github/workflows/ci.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../../.github/workflows/ci.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/codeStyles/Project.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/deploymentTargetSelector.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/kotlinc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/kotlinc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/CrmApplication.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/CrmApplication.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/MainActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/MainActivity.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/data/local/AuthTokenStore.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/data/local/AuthTokenStore.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/data/remote/AuthInterceptor.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/data/remote/AuthInterceptor.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/data/remote/ServerUrlInterceptor.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/data/remote/ServerUrlInterceptor.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/data/repository/AuthRepository.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/data/repository/AuthRepository.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/data/sync/SyncWorker.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/data/sync/SyncWorker.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gradle/libs.versions.toml" beforeDir="false" afterPath="$PROJECT_DIR$/gradle/libs.versions.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/build/outputs/apk/release/app-release.apk" beforeDir="false" afterPath="$PROJECT_DIR$/app/build/outputs/apk/release/app-release.apk" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/build/outputs/apk/release/baselineProfiles/0/app-release.dm" beforeDir="false" afterPath="$PROJECT_DIR$/app/build/outputs/apk/release/baselineProfiles/0/app-release.dm" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/build/outputs/apk/release/baselineProfiles/1/app-release.dm" beforeDir="false" afterPath="$PROJECT_DIR$/app/build/outputs/apk/release/baselineProfiles/1/app-release.dm" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/data/remote/Dto.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/jalanjyothi/crm/data/remote/Dto.kt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,7 +26,7 @@
       <entry key="_C:/Users/AN20545092/glodenversion/Workspace/MyCRM/MyCRM/client/android-native" value="3G37BxU3xuJqYzhLbyjK9rfjReE" />
     </persistenceIdMap>
   </component>
-  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[DeviceId(pluginId=LocalEmulator, isTemplate=false, identifier=path=C:\Users\AN20545092\.android\avd\Pixel_Fold_API_36.avd)]" />
+  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[DeviceId(pluginId=LocalEmulator, isTemplate=false, identifier=path=C:\Users\AN20545092\.android\avd\Pixel_9_Pro_XL_API_36_1.avd)]" />
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
       <ProjectState />
