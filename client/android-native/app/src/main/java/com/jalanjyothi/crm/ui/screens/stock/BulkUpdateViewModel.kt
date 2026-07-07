@@ -2,14 +2,12 @@ package com.jalanjyothi.crm.ui.screens.stock
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jalanjyothi.crm.data.remote.ApiService
-import com.jalanjyothi.crm.data.remote.BulkUpdateItemRequest
-import com.jalanjyothi.crm.data.remote.BulkUpdateItemsRequest
 import com.jalanjyothi.crm.data.repository.OfflineRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -39,7 +37,6 @@ data class BulkUpdateUiState(
 
 @HiltViewModel
 class BulkUpdateViewModel @Inject constructor(
-    private val api: ApiService,
     private val repository: OfflineRepository,
 ) : ViewModel() {
 
@@ -54,8 +51,8 @@ class BulkUpdateViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
-                val response = api.getItems(limit = 1000)
-                val bulkItems = response.items.map { item ->
+                val entities = repository.observeItems().first()
+                val bulkItems = entities.map { item ->
                     BulkItemState(
                         id = item.id,
                         skuId = item.skuId,
@@ -118,24 +115,17 @@ class BulkUpdateViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null, successMessage = null) }
             try {
-                val request = BulkUpdateItemsRequest(
-                    items = modifiedItems.map { item ->
-                        BulkUpdateItemRequest(
-                            id = item.id,
-                            skuId = item.skuId,
-                            itemName = item.itemName,
-                            packageQuantityGrams = item.packageQuantityGrams,
-                            purchaseCost = item.purchaseCost.toDoubleOrNull() ?: 0.0,
-                            sellingPrice = item.sellingPrice.toDoubleOrNull() ?: 0.0,
-                            mrp = item.mrp.toDoubleOrNull(),
-                            packagingStyle = item.packagingStyle,
-                            category = item.categoryName,
-                        )
-                    },
-                )
-                val response = api.bulkUpdateItems(request)
-                repository.syncItems() // Refresh Room so inventory list updates
-                _uiState.update { it.copy(isSaving = false, successMessage = response.message) }
+                for (item in modifiedItems) {
+                    repository.updateItemPricingLocal(
+                        id = item.id,
+                        purchaseCost = item.purchaseCost.toDoubleOrNull() ?: 0.0,
+                        sellingPrice = item.sellingPrice.toDoubleOrNull() ?: 0.0,
+                        mrp = item.mrp.toDoubleOrNull(),
+                    )
+                }
+                _uiState.update {
+                    it.copy(isSaving = false, successMessage = "Updated ${modifiedItems.size} item(s)")
+                }
                 onSuccess()
             } catch (e: Exception) {
                 _uiState.update {

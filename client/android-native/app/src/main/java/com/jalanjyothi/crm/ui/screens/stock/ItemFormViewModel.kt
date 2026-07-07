@@ -3,7 +3,6 @@ package com.jalanjyothi.crm.ui.screens.stock
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jalanjyothi.crm.data.remote.ApiService
 import com.jalanjyothi.crm.data.remote.CategoryDto
 import com.jalanjyothi.crm.data.remote.CreateItemRequest
 import com.jalanjyothi.crm.data.repository.OfflineRepository
@@ -11,6 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -43,7 +43,6 @@ data class ItemFormUiState(
 
 @HiltViewModel
 class ItemFormViewModel @Inject constructor(
-    private val api: ApiService,
     private val repository: OfflineRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -61,25 +60,28 @@ class ItemFormViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
-                val categories = api.getCategories()
+                val categories = repository.observeCategories().first()
+                    .map { CategoryDto(it.id, it.name, it.description) }
                 _uiState.update { it.copy(categories = categories) }
 
                 if (itemId != null) {
-                    val item = api.getItem(itemId)
-                    _uiState.update {
-                        it.copy(
-                            itemName = item.itemName,
-                            packagingStyle = item.packagingStyle ?: "packet",
-                            packageQuantity = item.packageQuantityGrams.toString(),
-                            purchaseCost = item.purchaseCost.toString(),
-                            sellingPrice = item.sellingPrice.toString(),
-                            mrp = item.mrp?.toString() ?: "",
-                            currentStock = item.currentStock.toString(),
-                            lowStockThreshold = item.lowStockThreshold.toString(),
-                            selectedCategoryId = item.categoryId,
-                        )
+                    val item = repository.getItemById(itemId)
+                    if (item != null) {
+                        _uiState.update {
+                            it.copy(
+                                itemName = item.itemName,
+                                packagingStyle = item.packagingStyle ?: "packet",
+                                packageQuantity = item.packageQuantityGrams.toString(),
+                                purchaseCost = item.purchaseCost.toString(),
+                                sellingPrice = item.sellingPrice.toString(),
+                                mrp = item.mrp?.toString() ?: "",
+                                currentStock = item.currentStock.toString(),
+                                lowStockThreshold = item.lowStockThreshold.toString(),
+                                selectedCategoryId = item.categoryId,
+                            )
+                        }
+                        recalculateMargin()
                     }
-                    recalculateMargin()
                 }
 
                 _uiState.update { it.copy(isLoading = false) }
@@ -159,13 +161,10 @@ class ItemFormViewModel @Inject constructor(
                 )
 
                 if (itemId != null) {
-                    api.updateItem(itemId, request)
+                    repository.updateItemLocal(itemId, request)
                 } else {
-                    api.createItem(request)
+                    repository.createItemLocal(request)
                 }
-
-                // Refresh local Room cache so StockScreen list updates immediately
-                repository.syncItems()
 
                 _uiState.update { it.copy(isSaving = false) }
                 onSuccess()

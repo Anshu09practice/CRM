@@ -3,15 +3,18 @@ package com.jalanjyothi.crm.ui.screens.bills
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jalanjyothi.crm.data.remote.ApiService
 import com.jalanjyothi.crm.data.remote.BillLineItem
 import com.jalanjyothi.crm.data.remote.CreateBillRequest
 import com.jalanjyothi.crm.data.remote.CustomerDto
 import com.jalanjyothi.crm.data.remote.ItemDto
+import com.jalanjyothi.crm.data.repository.OfflineRepository
+import com.jalanjyothi.crm.data.repository.toCustomerDto
+import com.jalanjyothi.crm.data.repository.toItemDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -62,7 +65,7 @@ data class SelectedLineItem(
 
 @HiltViewModel
 class BillFormViewModel @Inject constructor(
-    private val api: ApiService,
+    private val repository: OfflineRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -79,39 +82,41 @@ class BillFormViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
-                val customers = api.getCustomers()
-                val stockResponse = api.getItems(limit = 500)
+                val customers = repository.observeCustomers().first().map { it.toCustomerDto() }
+                val items = repository.observeItems().first().map { it.toItemDto() }
                 _uiState.update {
                     it.copy(
                         customers = customers,
-                        availableItems = stockResponse.items.filter { item -> item.currentStock > 0 },
+                        availableItems = items.filter { item -> item.currentStock > 0 },
                         isLoading = false,
                     )
                 }
 
                 // If editing, load existing bill
                 if (billId != null) {
-                    val bill = api.getBill(billId)
-                    _uiState.update {
-                        it.copy(
-                            customerName = bill.customerName,
-                            customerPhone = bill.customerPhone ?: "",
-                            selectedCustomerId = bill.customerId,
-                            selectedItems = bill.items?.map { item ->
-                                SelectedLineItem(
-                                    itemId = item.itemId,
-                                    itemName = item.itemName,
-                                    quantity = item.quantity,
-                                    sellingPrice = item.sellingPrice,
-                                    maxStock = 999,
-                                    lineTotal = item.lineTotal,
-                                )
-                            } ?: emptyList(),
-                            discountPercent = bill.discountPercent,
-                            notes = bill.notes ?: "",
-                        )
+                    val bill = repository.getBillById(billId)
+                    if (bill != null) {
+                        _uiState.update {
+                            it.copy(
+                                customerName = bill.customerName,
+                                customerPhone = bill.customerPhone ?: "",
+                                selectedCustomerId = bill.customerId,
+                                selectedItems = bill.items?.map { item ->
+                                    SelectedLineItem(
+                                        itemId = item.itemId,
+                                        itemName = item.itemName,
+                                        quantity = item.quantity,
+                                        sellingPrice = item.sellingPrice,
+                                        maxStock = 999,
+                                        lineTotal = item.lineTotal,
+                                    )
+                                } ?: emptyList(),
+                                discountPercent = bill.discountPercent,
+                                notes = bill.notes ?: "",
+                            )
+                        }
+                        recalculateTotals()
                     }
-                    recalculateTotals()
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = "Failed to load data") }
@@ -282,9 +287,9 @@ class BillFormViewModel @Inject constructor(
                 )
 
                 if (billId != null) {
-                    api.updateBill(billId, request)
+                    repository.updateBillLocal(billId, request)
                 } else {
-                    api.createBill(request)
+                    repository.createBillLocal(request)
                 }
 
                 _uiState.update { it.copy(isSaving = false, isSuccess = true) }

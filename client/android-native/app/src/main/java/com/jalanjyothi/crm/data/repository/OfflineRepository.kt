@@ -1,5 +1,6 @@
 package com.jalanjyothi.crm.data.repository
 
+import android.content.Context
 import com.jalanjyothi.crm.data.local.dao.BillDao
 import com.jalanjyothi.crm.data.local.dao.CategoryDao
 import com.jalanjyothi.crm.data.local.dao.CustomerDao
@@ -8,6 +9,7 @@ import com.jalanjyothi.crm.data.local.dao.ItemDao
 import com.jalanjyothi.crm.data.local.dao.MutationDao
 import com.jalanjyothi.crm.data.local.dao.PurchaseDao
 import com.jalanjyothi.crm.data.local.entity.BillEntity
+import com.jalanjyothi.crm.data.local.entity.BillItemEntity
 import com.jalanjyothi.crm.data.local.entity.CategoryEntity
 import com.jalanjyothi.crm.data.local.entity.CustomerEntity
 import com.jalanjyothi.crm.data.local.entity.ExpenseEntity
@@ -15,6 +17,13 @@ import com.jalanjyothi.crm.data.local.entity.ItemEntity
 import com.jalanjyothi.crm.data.local.entity.PendingMutation
 import com.jalanjyothi.crm.data.local.entity.PurchaseEntity
 import com.jalanjyothi.crm.data.remote.ApiService
+import com.jalanjyothi.crm.data.remote.BillDto
+import com.jalanjyothi.crm.data.remote.BillItemDto
+import com.jalanjyothi.crm.data.remote.CreateBillRequest
+import com.jalanjyothi.crm.data.remote.CreateExpenseRequest
+import com.jalanjyothi.crm.data.remote.CreateItemRequest
+import com.jalanjyothi.crm.data.remote.CreatePurchaseRequest
+import com.jalanjyothi.crm.data.remote.CustomerDto
 import com.jalanjyothi.crm.data.remote.CustomersSummary
 import com.jalanjyothi.crm.data.remote.DashboardSummary
 import com.jalanjyothi.crm.data.remote.InventorySummary
@@ -23,7 +32,10 @@ import com.jalanjyothi.crm.data.remote.MonthlySummary
 import com.jalanjyothi.crm.data.remote.PendingPayments
 import com.jalanjyothi.crm.data.remote.PurchaseDto
 import com.jalanjyothi.crm.data.remote.TodaySummary
+import com.jalanjyothi.crm.data.sync.SyncWorker
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.time.LocalDate
 import javax.inject.Inject
@@ -45,6 +57,7 @@ class OfflineRepository @Inject constructor(
     private val purchaseDao: PurchaseDao,
     private val mutationDao: MutationDao,
     private val json: Json,
+    @ApplicationContext private val context: Context,
 ) {
     // ─── Items ────────────────────────────────────────────────────────────────
 
@@ -77,6 +90,86 @@ class OfflineRepository @Inject constructor(
             itemDao.deleteAll()
             itemDao.insertAll(entities)
         } catch (_: Exception) { /* Use cached data */ }
+    }
+
+    suspend fun getItemById(id: Int): ItemEntity? = itemDao.getById(id)
+
+    /**
+     * Creates an item locally (Room is the source of truth) and queues a mutation
+     * so it syncs to the server whenever connectivity is available. Works fully offline.
+     */
+    suspend fun createItemLocal(request: CreateItemRequest): ItemEntity {
+        val categoryName = request.categoryId?.let { categoryDao.getById(it)?.name }
+        val entity = ItemEntity(
+            id = generateLocalId(),
+            skuId = request.skuId,
+            itemName = request.itemName,
+            packageQuantityGrams = request.packageQuantityGrams,
+            purchaseCost = request.purchaseCost,
+            sellingPrice = request.sellingPrice,
+            mrp = request.mrp,
+            packagingStyle = request.packagingStyle,
+            currentStock = request.currentStock ?: 0,
+            lowStockThreshold = request.lowStockThreshold ?: 10,
+            defaultTaxPercent = request.defaultTaxPercent,
+            categoryId = request.categoryId,
+            categoryName = categoryName,
+        )
+        itemDao.insert(entity)
+        queueCreateOrUpdate("item", entity.id, json.encodeToString(request))
+        return entity
+    }
+
+    suspend fun updateItemLocal(id: Int, request: CreateItemRequest): ItemEntity? {
+        val existing = itemDao.getById(id) ?: return null
+        val categoryName = request.categoryId?.let { categoryDao.getById(it)?.name } ?: existing.categoryName
+        val updated = existing.copy(
+            skuId = request.skuId,
+            itemName = request.itemName,
+            packageQuantityGrams = request.packageQuantityGrams,
+            purchaseCost = request.purchaseCost,
+            sellingPrice = request.sellingPrice,
+            mrp = request.mrp,
+            packagingStyle = request.packagingStyle,
+            currentStock = request.currentStock ?: existing.currentStock,
+            lowStockThreshold = request.lowStockThreshold ?: existing.lowStockThreshold,
+            defaultTaxPercent = request.defaultTaxPercent,
+            categoryId = request.categoryId,
+            categoryName = categoryName,
+        )
+        itemDao.insert(updated)
+        queueCreateOrUpdate("item", id, json.encodeToString(request))
+        return updated
+    }
+
+    /**
+     * Applies just the pricing fields (used by bulk price update), preserving
+     * everything else about the item as-is.
+     */
+    suspend fun updateItemPricingLocal(id: Int, purchaseCost: Double, sellingPrice: Double, mrp: Double?): ItemEntity? {
+        val existing = itemDao.getById(id) ?: return null
+        val updated = existing.copy(purchaseCost = purchaseCost, sellingPrice = sellingPrice, mrp = mrp)
+        itemDao.insert(updated)
+        val request = CreateItemRequest(
+            itemName = updated.itemName,
+            packageQuantityGrams = updated.packageQuantityGrams,
+            purchaseCost = updated.purchaseCost,
+            sellingPrice = updated.sellingPrice,
+            mrp = updated.mrp,
+            packagingStyle = updated.packagingStyle,
+            categoryId = updated.categoryId,
+            skuId = updated.skuId,
+            currentStock = updated.currentStock,
+            lowStockThreshold = updated.lowStockThreshold,
+            defaultTaxPercent = updated.defaultTaxPercent,
+        )
+        queueCreateOrUpdate("item", id, json.encodeToString(request))
+        return updated
+    }
+
+    suspend fun deleteItemLocal(id: Int) {
+        itemDao.delete(id)
+        queueDelete("item", id)
     }
 
     // ─── Categories ───────────────────────────────────────────────────────────
@@ -147,6 +240,143 @@ class OfflineRepository @Inject constructor(
         } catch (_: Exception) { }
     }
 
+    suspend fun getBillById(id: Int): BillDto? {
+        val bill = billDao.getById(id) ?: return null
+        val items = billDao.getBillItems(id)
+        return BillDto(
+            id = bill.id,
+            billNumber = bill.billNumber,
+            customerName = bill.customerName,
+            customerPhone = bill.customerPhone,
+            customerId = bill.customerId,
+            subtotal = bill.subtotal,
+            discountPercent = bill.discountPercent,
+            discountAmount = bill.discountAmount,
+            taxPercent = bill.taxPercent,
+            total = bill.total,
+            amountPaid = bill.amountPaid,
+            paymentStatus = bill.paymentStatus,
+            billDate = bill.billDate,
+            notes = bill.notes,
+            items = items.map {
+                BillItemDto(
+                    id = it.id,
+                    itemId = it.itemId,
+                    itemName = it.itemName,
+                    quantity = it.quantity,
+                    sellingPrice = it.sellingPrice,
+                    lineTotal = it.lineTotal,
+                )
+            },
+            payments = null,
+        )
+    }
+
+    /**
+     * Creates a bill fully offline: writes the bill + line items to Room, decrements
+     * item stock immediately, and queues a mutation to push it to the server later.
+     */
+    suspend fun createBillLocal(request: CreateBillRequest): BillEntity {
+        val billId = generateLocalId()
+        var subtotal = 0.0
+        val lineEntities = request.items.map { line ->
+            val item = itemDao.getById(line.itemId)
+            val price = line.sellingPrice ?: item?.sellingPrice ?: 0.0
+            val lineTotal = price * line.quantity
+            subtotal += lineTotal
+            if (item != null) {
+                itemDao.insert(item.copy(currentStock = (item.currentStock - line.quantity).coerceAtLeast(0)))
+            }
+            BillItemEntity(
+                id = generateLocalId(),
+                billId = billId,
+                itemId = line.itemId,
+                itemName = item?.itemName ?: "",
+                quantity = line.quantity,
+                sellingPrice = price,
+                lineTotal = lineTotal,
+            )
+        }
+        val discountAmount = subtotal * request.discountPercent / 100.0
+        val total = subtotal - discountAmount
+        val amountPaid = request.amountPaid ?: total
+        val entity = BillEntity(
+            id = billId,
+            billNumber = "OFFLINE-$billId",
+            customerName = request.customerName,
+            customerPhone = request.customerPhone,
+            customerId = request.customerId,
+            subtotal = subtotal,
+            discountPercent = request.discountPercent,
+            discountAmount = discountAmount,
+            taxPercent = request.taxPercent ?: 0.0,
+            total = total,
+            amountPaid = amountPaid,
+            paymentStatus = if (amountPaid >= total) "paid" else if (amountPaid > 0) "partial" else "pending",
+            billDate = request.billDate ?: LocalDate.now().toString(),
+            notes = request.notes,
+        )
+        billDao.insert(entity)
+        billDao.insertBillItems(lineEntities)
+        queueCreateOrUpdate("bill", billId, json.encodeToString(request))
+        return entity
+    }
+
+    /**
+     * Updates a bill locally: restores stock from the previous line items, applies
+     * the new ones, and replaces the bill + line items in Room.
+     */
+    suspend fun updateBillLocal(id: Int, request: CreateBillRequest): BillEntity {
+        val oldLines = billDao.getBillItems(id)
+        for (old in oldLines) {
+            itemDao.getById(old.itemId)?.let { itemDao.insert(it.copy(currentStock = it.currentStock + old.quantity)) }
+        }
+        var subtotal = 0.0
+        val lineEntities = request.items.map { line ->
+            val item = itemDao.getById(line.itemId)
+            val price = line.sellingPrice ?: item?.sellingPrice ?: 0.0
+            val lineTotal = price * line.quantity
+            subtotal += lineTotal
+            if (item != null) {
+                itemDao.insert(item.copy(currentStock = (item.currentStock - line.quantity).coerceAtLeast(0)))
+            }
+            BillItemEntity(
+                id = generateLocalId(),
+                billId = id,
+                itemId = line.itemId,
+                itemName = item?.itemName ?: "",
+                quantity = line.quantity,
+                sellingPrice = price,
+                lineTotal = lineTotal,
+            )
+        }
+        val discountAmount = subtotal * request.discountPercent / 100.0
+        val total = subtotal - discountAmount
+        val amountPaid = request.amountPaid ?: total
+        val existing = billDao.getById(id)
+        val entity = BillEntity(
+            id = id,
+            billNumber = existing?.billNumber ?: "OFFLINE-$id",
+            customerName = request.customerName,
+            customerPhone = request.customerPhone,
+            customerId = request.customerId,
+            subtotal = subtotal,
+            discountPercent = request.discountPercent,
+            discountAmount = discountAmount,
+            taxPercent = request.taxPercent ?: 0.0,
+            total = total,
+            amountPaid = amountPaid,
+            paymentStatus = if (amountPaid >= total) "paid" else if (amountPaid > 0) "partial" else "pending",
+            billDate = request.billDate ?: existing?.billDate ?: LocalDate.now().toString(),
+            notes = request.notes,
+        )
+        // REPLACE cascade-deletes old bill_items for this bill (FK CASCADE), then we insert the new ones.
+        billDao.insert(entity)
+        billDao.insertBillItems(lineEntities)
+        queueCreateOrUpdate("bill", id, json.encodeToString(request))
+        return entity
+    }
+
     // ─── Expenses ─────────────────────────────────────────────────────────────
 
     fun observeExpenses(): Flow<List<ExpenseEntity>> = expenseDao.getAll()
@@ -167,6 +397,25 @@ class OfflineRepository @Inject constructor(
             expenseDao.deleteAll()
             expenseDao.insertAll(entities)
         } catch (_: Exception) { }
+    }
+
+    suspend fun createExpenseLocal(request: CreateExpenseRequest): ExpenseEntity {
+        val entity = ExpenseEntity(
+            id = generateLocalId(),
+            category = request.category,
+            amount = request.amount,
+            description = request.description,
+            expenseDate = request.expenseDate ?: LocalDate.now().toString(),
+            createdBy = null,
+        )
+        expenseDao.insert(entity)
+        queueCreateOrUpdate("expense", entity.id, json.encodeToString(request))
+        return entity
+    }
+
+    suspend fun deleteExpenseLocal(id: Int) {
+        expenseDao.delete(id)
+        queueDelete("expense", id)
     }
 
     // ─── Purchases ────────────────────────────────────────────────────────────
@@ -192,6 +441,37 @@ class OfflineRepository @Inject constructor(
             purchaseDao.deleteAll()
             purchaseDao.insertAll(entities)
         } catch (_: Exception) { }
+    }
+
+    /**
+     * Records a purchase locally and bumps the item's stock immediately so the
+     * UI reflects it without a server round-trip. Queues a mutation to push the
+     * purchase to the server when connectivity returns.
+     */
+    suspend fun createPurchaseLocal(request: CreatePurchaseRequest): PurchaseEntity {
+        val item = itemDao.getById(request.itemId)
+        val cost = request.purchaseCost ?: item?.purchaseCost ?: 0.0
+        val entity = PurchaseEntity(
+            id = generateLocalId(),
+            itemId = request.itemId,
+            itemName = item?.itemName ?: "",
+            quantity = request.quantity,
+            purchaseCost = cost,
+            totalCost = cost * request.quantity,
+            purchaseDate = request.purchaseDate ?: LocalDate.now().toString(),
+            notes = request.notes,
+        )
+        purchaseDao.insert(entity)
+        if (item != null) {
+            itemDao.insert(item.copy(currentStock = item.currentStock + request.quantity, purchaseCost = cost))
+        }
+        queueCreateOrUpdate("purchase", entity.id, json.encodeToString(request))
+        return entity
+    }
+
+    suspend fun deletePurchaseLocal(id: Int) {
+        purchaseDao.delete(id)
+        queueDelete("purchase", id)
     }
 
     // ─── Local Dashboard (offline fallback) ──────────────────────────────────
@@ -246,6 +526,7 @@ class OfflineRepository @Inject constructor(
         syncCustomers()
         syncBills()
         syncExpenses()
+        syncPurchases()
     }
 
     // ─── Offline Mutations ────────────────────────────────────────────────────
@@ -259,6 +540,48 @@ class OfflineRepository @Inject constructor(
                 payload = payload,
             )
         )
+        // Best-effort push right away; a no-op until connectivity is available (WorkManager waits on the constraint).
+        SyncWorker.triggerImmediateSync(context)
+    }
+
+    /**
+     * Generates a negative, millisecond-based placeholder id for entities created
+     * while offline. Once the entity syncs, syncItems()/syncPurchases()/etc. fully
+     * replace local rows with the server's authoritative rows (real positive ids).
+     */
+    private fun generateLocalId(): Int = -(System.currentTimeMillis() % 1_000_000_000L).coerceAtLeast(1L).toInt()
+
+    /**
+     * Queues a create/update mutation for an entity. If the entity itself was
+     * created offline and hasn't synced yet (negative id), the still-pending
+     * "create" mutation's payload is updated in place instead of adding a
+     * redundant "update" mutation that would reference a nonexistent server id.
+     */
+    private suspend fun queueCreateOrUpdate(entityType: String, entityId: Int, payload: String) {
+        if (entityId < 0) {
+            val pendingCreate = mutationDao.findPendingCreate(entityType, entityId)
+            if (pendingCreate != null) {
+                mutationDao.updatePayload(pendingCreate.id, payload)
+                return
+            }
+        }
+        val type = if (entityId < 0) "create_$entityType" else "update_$entityType"
+        queueMutation(type, entityType, entityId, payload)
+    }
+
+    /**
+     * Queues a delete mutation. If the entity was created offline and never
+     * synced, its pending "create" mutation is simply cancelled instead.
+     */
+    private suspend fun queueDelete(entityType: String, entityId: Int) {
+        if (entityId < 0) {
+            val pendingCreate = mutationDao.findPendingCreate(entityType, entityId)
+            if (pendingCreate != null) {
+                mutationDao.delete(pendingCreate.id)
+                return
+            }
+        }
+        queueMutation("delete_$entityType", entityType, entityId, "")
     }
 
     suspend fun processPendingMutations(): Int {
@@ -283,19 +606,35 @@ class OfflineRepository @Inject constructor(
 
     private suspend fun executeMutation(mutation: PendingMutation) {
         // Execute queued mutations against server
-        // This handles offline-created bills, items, expenses etc.
+        // This handles offline-created bills, items, purchases, expenses etc.
         when (mutation.type) {
             "create_bill" -> {
-                val request = json.decodeFromString<com.jalanjyothi.crm.data.remote.CreateBillRequest>(mutation.payload)
+                val request = json.decodeFromString<CreateBillRequest>(mutation.payload)
                 api.createBill(request)
             }
+            "update_bill" -> {
+                val request = json.decodeFromString<CreateBillRequest>(mutation.payload)
+                mutation.entityId?.let { api.updateBill(it, request) }
+            }
             "create_item" -> {
-                val request = json.decodeFromString<com.jalanjyothi.crm.data.remote.CreateItemRequest>(mutation.payload)
+                val request = json.decodeFromString<CreateItemRequest>(mutation.payload)
                 api.createItem(request)
             }
+            "update_item" -> {
+                val request = json.decodeFromString<CreateItemRequest>(mutation.payload)
+                mutation.entityId?.let { api.updateItem(it, request) }
+            }
             "create_expense" -> {
-                val request = json.decodeFromString<com.jalanjyothi.crm.data.remote.CreateExpenseRequest>(mutation.payload)
+                val request = json.decodeFromString<CreateExpenseRequest>(mutation.payload)
                 api.createExpense(request)
+            }
+            "update_expense" -> {
+                val request = json.decodeFromString<CreateExpenseRequest>(mutation.payload)
+                mutation.entityId?.let { api.updateExpense(it, request) }
+            }
+            "create_purchase" -> {
+                val request = json.decodeFromString<CreatePurchaseRequest>(mutation.payload)
+                api.createPurchase(request)
             }
             "delete_bill" -> {
                 mutation.entityId?.let { api.deleteBill(it) }
@@ -305,6 +644,9 @@ class OfflineRepository @Inject constructor(
             }
             "delete_expense" -> {
                 mutation.entityId?.let { api.deleteExpense(it) }
+            }
+            "delete_purchase" -> {
+                mutation.entityId?.let { api.deletePurchase(it) }
             }
         }
     }
@@ -337,4 +679,22 @@ fun PurchaseEntity.toPurchaseDto() = PurchaseDto(
     totalCost = totalCost,
     purchaseDate = purchaseDate,
     notes = notes,
+)
+
+fun CustomerEntity.toCustomerDto() = CustomerDto(
+    id = id,
+    name = name,
+    phone = phone,
+    address = address,
+    creditBalance = creditBalance,
+    notes = notes,
+)
+
+fun ExpenseEntity.toExpenseDto() = com.jalanjyothi.crm.data.remote.ExpenseDto(
+    id = id,
+    category = category,
+    amount = amount,
+    description = description,
+    expenseDate = expenseDate,
+    createdBy = createdBy,
 )

@@ -2,7 +2,6 @@ package com.jalanjyothi.crm.ui.screens.stock
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jalanjyothi.crm.data.remote.ApiService
 import com.jalanjyothi.crm.data.remote.PurchaseDto
 import com.jalanjyothi.crm.data.repository.OfflineRepository
 import com.jalanjyothi.crm.data.repository.toPurchaseDto
@@ -29,7 +28,6 @@ data class PurchasesUiState(
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class PurchasesViewModel @Inject constructor(
-    private val api: ApiService,
     private val repository: OfflineRepository,
 ) : ViewModel() {
 
@@ -76,8 +74,7 @@ class PurchasesViewModel @Inject constructor(
     fun deletePurchase(id: Int) {
         viewModelScope.launch {
             try {
-                api.deletePurchase(id)
-                repository.syncPurchases() // Refresh Room after deletion
+                repository.deletePurchaseLocal(id)
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Failed to delete purchase") }
             }

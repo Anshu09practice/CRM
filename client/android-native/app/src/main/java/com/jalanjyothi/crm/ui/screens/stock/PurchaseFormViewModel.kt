@@ -2,14 +2,15 @@ package com.jalanjyothi.crm.ui.screens.stock
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jalanjyothi.crm.data.remote.ApiService
 import com.jalanjyothi.crm.data.remote.CreatePurchaseRequest
 import com.jalanjyothi.crm.data.remote.ItemDto
 import com.jalanjyothi.crm.data.repository.OfflineRepository
+import com.jalanjyothi.crm.data.repository.toItemDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -34,7 +35,6 @@ data class PurchaseFormUiState(
 
 @HiltViewModel
 class PurchaseFormViewModel @Inject constructor(
-    private val api: ApiService,
     private val repository: OfflineRepository,
 ) : ViewModel() {
 
@@ -49,8 +49,8 @@ class PurchaseFormViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
-                val response = api.getItems(limit = 1000)
-                _uiState.update { it.copy(items = response.items, filteredItems = response.items, isLoading = false) }
+                val items = repository.observeItems().first().map { it.toItemDto() }
+                _uiState.update { it.copy(items = items, filteredItems = items, isLoading = false) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = "Failed to load items") }
             }
@@ -121,7 +121,7 @@ class PurchaseFormViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             try {
-                api.createPurchase(
+                repository.createPurchaseLocal(
                     CreatePurchaseRequest(
                         itemId = state.selectedItem.id,
                         quantity = qty,
@@ -130,9 +130,6 @@ class PurchaseFormViewModel @Inject constructor(
                         notes = state.notes.ifBlank { null },
                     )
                 )
-                // Sync both so stock and purchases list update reactively
-                repository.syncItems()
-                repository.syncPurchases()
                 _uiState.update { it.copy(isSaving = false) }
                 onSuccess()
             } catch (e: Exception) {

@@ -65,6 +65,9 @@ interface CategoryDao {
     @Query("SELECT * FROM categories ORDER BY name ASC")
     fun getAll(): Flow<List<CategoryEntity>>
 
+    @Query("SELECT * FROM categories WHERE id = :id")
+    suspend fun getById(id: Int): CategoryEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(categories: List<CategoryEntity>)
 
@@ -230,6 +233,12 @@ interface MutationDao {
 
     @Query("DELETE FROM pending_mutations WHERE retries > 5")
     suspend fun deleteStaleRetries()
+
+    @Query("SELECT * FROM pending_mutations WHERE entityType = :entityType AND entityId = :entityId AND type LIKE 'create_%' LIMIT 1")
+    suspend fun findPendingCreate(entityType: String, entityId: Int): PendingMutation?
+
+    @Query("UPDATE pending_mutations SET payload = :payload WHERE id = :id")
+    suspend fun updatePayload(id: Long, payload: String)
 }
 
 @Dao
